@@ -29,6 +29,9 @@ interface
 
 {$I GR32.INC}
 
+{ Enable symbol for using SSE2 optimized routines. }
+{.$DEFINE USESSE2}
+
 uses
   GR32;
 
@@ -145,6 +148,7 @@ begin
   end;
 end;
 
+{$IFNDEF USESSE2}
 procedure CumSum(Values: PSingleArray; Count: Integer);
 var
   I: Integer;
@@ -158,6 +162,128 @@ begin
     Values[I] := V;
   end;
 end;
+
+{$ELSE}
+
+// SSE2 version -- Credits: Sanyin <prevodilac@hotmail.com>
+procedure CumSum(Values: PSingleArray; Count: Integer);
+asm
+        mov     ecx,edx
+        cmp     ecx,2   //if count<2, exit
+        jl      @end
+        cmp     ecx,32  //if count<32, avoid sse2 overhead
+        jl      @small
+
+//////////// ALIGN////////////////
+        push    ebx
+        pxor    xmm4, xmm4
+        mov     ebx,eax
+        and     ebx,15       //get aligned count
+        jz      @endaligning //already aligned
+        add     ebx,-16
+        neg     ebx          //get bytes to advance
+        jz      @endaligning //already aligned
+
+        mov     ecx,ebx
+        sar     ecx,2        //div with 4 to get cnt
+        sub     edx,ecx
+
+        add     eax,4
+        dec     ecx
+        jz      @setuplast   //one element
+
+@aligningloop:
+        fld     dword ptr [eax-4]
+        fadd    dword ptr [eax]
+        fstp    dword ptr [eax]
+        add     eax,4
+        dec     ecx
+        jnz     @aligningloop
+
+@setuplast:
+        MOVUPS  xmm4,[eax-4]
+        PSLLDQ  xmm4,12
+        PSRLDQ  xmm4,12
+
+@endaligning:
+        pop     ebx
+//////////////////////////////////
+
+        push    ebx
+        mov     ecx,edx
+        sar     ecx,2
+
+@loop:
+        MOVAPS  xmm0,[eax]
+//check if zero (4 values)
+        pxor    xmm5,xmm5
+        PCMPEQD xmm5,xmm0
+        PMOVMSKB EBX,XMM5
+        cmp     ebx,$0000ffff
+        jne     @normal
+        PSHUFD  XMM0,XMM4,0
+        jmp     @skip
+
+@normal:
+        ADDPS   xmm0,xmm4
+        PSHUFD  XMM1,XMM0,$e4
+        PSHUFD  XMM2,XMM0,$e4
+        PSHUFD  XMM3,XMM0,$e4
+        PSLLDQ  xmm1,4
+        PSLLDQ  xmm2,8
+        PSLLDQ  xmm3,12
+        ADDPS   xmm2,xmm3
+        ADDPS   xmm1,xmm2
+        ADDPS   xmm0,xmm1
+        PSHUFLW XMM4, XMM0, $e4
+        PSRLDQ  xmm4,12
+
+@skip:
+        MOVAPS  [eax],xmm0
+        add     eax,16
+        sub     ecx,1
+        jnz     @loop
+        pop     ebx
+
+        mov     ecx,edx
+        sar     ecx,2
+        shl     ecx,2
+        sub     edx,ecx
+        mov     ecx,edx
+        jz      @end
+
+@loop2:
+        fld     dword ptr [eax-4]
+        fadd    dword ptr [eax]
+        fstp    dword ptr [eax]
+        add     eax,4
+        dec     ecx
+        jnz     @loop2
+        ret
+
+@small:
+        mov     ecx,edx
+        add     eax,4
+        dec     ecx
+@loop3:
+        cmp     dword ptr [eax],0
+        jne     @nonzero
+        mov     edx,dword ptr [eax-4]
+        mov     dword ptr [eax],edx
+        add     eax,4
+        dec     ecx
+        jnz     @loop3
+        ret
+@nonzero:
+        fld     dword ptr [eax-4]
+        fadd    dword ptr [eax]
+        fstp    dword ptr [eax]
+        add     eax,4
+        dec     ecx
+        jnz     @loop3
+@end:
+end;
+{$ENDIF}
 
 procedure ExtractSingleSpan(const ScanLine: TScanLine; out Spans: PValueSpanArray;
   out Count: Integer);
