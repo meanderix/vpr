@@ -7,7 +7,7 @@ uses
   Dialogs, StdCtrls, GR32_Image, XPMan;
 
 type
-  TForm3 = class(TForm)
+  TForm1 = class(TForm)
     Img: TImage32;
     Button2: TButton;
     procedure Button2Click(Sender: TObject);
@@ -18,7 +18,7 @@ type
   end;
 
 var
-  Form3: TForm3;
+  Form1: TForm1;
 
 implementation
 
@@ -119,7 +119,7 @@ begin
   end;
 end;
 
-procedure TForm3.Button2Click(Sender: TObject);
+procedure TForm1.Button2Click(Sender: TObject);
 var
   PX, PY: TArrayOfFloatPoint;
   I: Integer;

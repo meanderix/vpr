@@ -9,9 +9,7 @@ uses
 type
   TForm1 = class(TForm)
     Img: TImage32;
-    Button1: TButton;
     procedure FormCreate(Sender: TObject);
-    procedure Button1Click(Sender: TObject);
   private
     { Private declarations }
   public
@@ -57,7 +55,7 @@ end;
 
 procedure PaintBitmap(Dst: TBitmap32);
 var
-  Renderer: TPathRenderer32;
+  Renderer: TPathRenderer;
   Polygon: TArrayOfFloatPoint;
   Dashed: TArrayOfArrayOfFloatPoint;
   I: Integer;
@@ -82,7 +80,7 @@ begin
   end;
 
   { (c) Render a path with an outline using a path renderer }
-  Renderer := TPathRenderer32.Create;
+  Renderer := TPathRenderer.Create;
   try
     Renderer.Bitmap := Dst;
     Renderer.EndStyle := esSquare;
@@ -125,62 +123,4 @@ begin
    end;
 end;
 
-procedure Test1BuildPolyline;
-var
-  pts: TArrayOfFloatPoint;
-begin
-  pts := nil;
-  pts := BuildPolyline(pts, 2.0, jsMiter, esSquare, 2.0);
-  //exception raised in VPR ver 1.18
-  //corrected by changing line 589 to ...
-  //while (H > 0) and (Normals[H].X = 0) and (Normals[H].Y = 0) do Dec(H);
-end;
-
-procedure Test2BuildPolyline;
-var
-  pts: TArrayOfFloatPoint;
-begin
-  pts := MakeArrayOfFloatPoints([10,10, 10,10]);
-  pts := BuildPolyline(pts, 2.0, jsMiter, esSquare, 2.0);
-  //fails to return a nil array in VPR ver 1.18
-  //corrected by changing line 589 to ...
-  //while (H >= 0) and (Normals[H].X = 0) and (Normals[H].Y = 0) do Dec(H);
-
-  //also, with those changes (back to a prior state) the algorithm functions
-  //properly IMHO and also removes the need for the added conditional test in
-  //line 592 - 'and (L < High(Normals))'.
-end;
-
-procedure TForm1.Button1Click(Sender: TObject);
-var
-  pts: TArrayOfFLoatPoint;
-  linewidth: tfloat;
-begin
-  Test1BuildPolyLine;
-  Test2BuildPolyLine;
-
-  //rounded end is broken ...
-//  pts := MakeArrayOfFloatPoints([ 100, 100,   200, 100,   200, 100 ]);
-  lineWidth := 30;
-//  PolylineFS(Img.Bitmap, pts, $40000099, false, lineWidth,
-//  jsRound, esRound);
-
-
-        //rounded end is broken ...
-{         pts := MakeArrayOfFloatPoints([ 100, 100,   200, 100,   200, 100 ]);
-        PolylineFS(Img.Bitmap, pts, $40000099, false, lineWidth,
-jsRound, esRound); }
-
-
-{         pts := MakeArrayOfFloatPoints([150,150,  300,150,  300,300, 150,300, 150,150]);
-        lineWidth := 200; //joinStyle := jsBevel; endStyle := esButt;
-
-        PolylineFS(img.Bitmap, pts, $40000099, true, lineWidth, jsBevel, esButt); }
-
-
-        //an edge case problem with no easy solution, but it's still something to think about ...
-        pts := MakeArrayOfFloatPoints([150,150,  260,150,  300,250,  340,150,  450,150]);
-        lineWidth := 100; //joinStyle := jsRound; endStyle := esRound;
-        PolylineFS(img.Bitmap, pts, $40000099, false, lineWidth, jsBevel, esRound);
-end;
 end.

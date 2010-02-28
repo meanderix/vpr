@@ -1,10 +1,10 @@
 object Form1: TForm1
   Left = 697
   Top = 196
-  Width = 496
-  Height = 516
   AutoSize = True
   Caption = 'VPR example  project'
+  ClientHeight = 480
+  ClientWidth = 480
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -26,14 +26,5 @@ object Form1: TForm1
     Scale = 1.000000000000000000
     ScaleMode = smNormal
     TabOrder = 0
-    object Button1: TButton
-      Left = 120
-      Top = 352
-      Width = 75
-      Height = 25
-      Caption = 'Button1'
-      TabOrder = 0
-      OnClick = Button1Click
-    end
   end
 end
