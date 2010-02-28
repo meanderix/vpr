@@ -1,4 +1,4 @@
-Vectorial Polygon Rasterizer for Graphics32 1.22
+Vectorial Polygon Rasterizer for Graphics32 1.23
 ================================================
 
 Description:
@@ -17,11 +17,12 @@ Advantages:
  - High performance - does not require oversampling;
  - Supports the GR32 polygon fillers;
  - Possible to implement custom renderers for different render targets;
- - Support for different "raster modes" that determines how spans are generated.
+ - Support for General Polygon Clipper for performing polygon set operations.
 
 Acknowledgements:
  - Thanks to Angus Johnson and Anders Melander for helping me track down bugs.
-
+ - Thanks to Sanyin for providing SSE2 optimized CumSum implementation.
+ 
 Change log:
  Version 1.00 (28 January 2009):
   - First version. Benchmark demo included.
@@ -90,7 +91,13 @@ Version 1.21 (16 June 2009):
 Version 1.22 (17 June 2009):
   - Added PolygonFS_LCD2 routine that performs an additional filtering pass.
     The result is smoother, but the performance hit is bigger.
-  
+Version 1.23 (28 February 2010):
+  - Added General Polygon Clipper (gpc.pas) [covered by separate license];
+  - Added a GPC test project (originally written by Richard B. Winston);
+  - Added SSE2 optimized CumSum routine by Sanyin <prevodilac@hotmail.com>;
+  - Fix: BuildDashedLine could return faulty line segments;
+  - Minor tweaks and optimizations.
+
 Included files:
   GR32_VPR.pas            this unit includes the core routines for computing 
                           coverage values for each scanline.
@@ -100,9 +107,19 @@ Included files:
   demo\VPR_Benchmark.dpr  benchmark demo (comparison with GR32_Polygons).
   
 License:
- This work is copyright Centaurix Interactive Designs / Mattias Andersson. 
+ This work is copyright Centaurix Interactive Designs / Mattias Andersson.
  It is licensed under the terms of the Mozilla Public Licene 1.1
  (MPL 1.1, available from http://www.mozilla.org/MPL/MPL-1.1.html)
+
+3rd-party licenses:
+ - The General Polygon Clipping library is copyright (C) Advanced Interfaces 
+   Group, University of Manchester and is free for non-commercial use only:
+   
+   <http://www.cs.man.ac.uk/~toby/alan/software/gpc.html>
+   
+ - AggPas and AggLite is copyright (C) Maxim Shemanarev:
+ 
+   <http://www.antigrain.com>
  
 Contact Details:
  Snailmail:

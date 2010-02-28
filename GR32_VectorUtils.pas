@@ -42,7 +42,9 @@ type
   TJoinStyle = (jsMiter, jsBevel, jsRound);
   TEndStyle = (esButt, esSquare, esRound);
 
+function _Round(var X: Single): Integer;
 function Round(const X: Single): Integer;
+
 function InSignedRange(const X, X1, X2: TFloat): Boolean;
 function OverlapExclusive(const X1, X2, Y1, Y2: TFloat): Boolean;
 function OverlapInclusive(const X1, X2, Y1, Y2: TFloat): Boolean;
@@ -92,6 +94,13 @@ uses
 
 type
   TTransformationAccess = class(TTransformation);
+
+function _Round(var X: Single): Integer;
+asm
+        fld       [X]
+        fistp     dword ptr [esp-4]
+        mov       eax,[esp-4]
+end;
 
 function Round(const X: Single): Integer;
 asm
@@ -353,7 +362,7 @@ const
 var
   Steps: Integer;
 begin
-  Steps := Max(MINSTEPS, Round(Sqrt(Abs(r)) * Abs(a2 - a1)));
+  Steps := Max(MINSTEPS, System.Round(Sqrt(Abs(r)) * Abs(a2 - a1)));
   Result := BuildArc(P, a1, a2, r, Steps);
 end;
 
@@ -805,7 +814,8 @@ begin
   end;
 
   J := 0;
-  SetLength(Result, 1);
+  // note to self: second dimension might not be zero by default!
+  SetLength(Result, 1, 0);
   if not Odd(DashIndex) then
     AddPoint(Points[0].X, Points[0].Y);
   for I := 1 to High(Points) do
