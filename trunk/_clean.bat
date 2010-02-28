@@ -22,3 +22,4 @@ del /s *.local
 del /s *.2007
 del /s *.identcache
 del /s /A Thumbs.db
+del /s *.drc

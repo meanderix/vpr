@@ -1,4 +1,4 @@
-object Form3: TForm3
+object Form1: TForm1
   Left = 833
   Top = 165
   Caption = 'Curves Example'

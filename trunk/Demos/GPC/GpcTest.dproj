@@ -2,7 +2,7 @@
 		<PropertyGroup>
 			<ProjectGuid>{06B33AAB-18E5-405E-A81D-2EBAEC8C3C93}</ProjectGuid>
 			<MainSource>GpcTest.dpr</MainSource>
-			<Config Condition="'$(Config)'==''">Debug</Config>
+			<Config Condition="'$(Config)'==''">Release</Config>
 			<DCC_DCCCompiler>DCC32</DCC_DCCCompiler>
 			<ProjectVersion>12.0</ProjectVersion>
 		</PropertyGroup>
