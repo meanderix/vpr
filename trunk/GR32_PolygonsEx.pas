@@ -29,7 +29,7 @@ interface
 
 {$I GR32.INC}
 
-{$DEFINE USEGR32GAMMA}
+{.$DEFINE USEGR32GAMMA}
 {.$DEFINE CHANGENOTIFICATIONS}
 
 uses
@@ -42,6 +42,12 @@ type
     Count: Integer; Color: TColor32);
 
 type
+  { TPolygonRenderer }
+  TPolygonRenderer = class
+  protected
+    procedure RenderSpan(const Span: TValueSpan; DstY: Integer); virtual; abstract;
+  end;
+
   { TPolygonRenderer32 }
   TPolygonRenderer32 = class(TPolygonRenderer)
   private
@@ -759,6 +765,9 @@ begin
     AlphaValues[3] := 0;
     AlphaValues[4] := 0;
   end;
+
+  //if not PtInRect(Bitmap.BoundsRect, Point(X1 + (Count + Offset + 2) div 3 - 1, DstY)) then
+  //  Sleep(0);
 
   MakeAlpha[FFillMode](Span.Values, PByteArray(@AlphaValues[PADDING]), Count, FColor);
   CombineLineLCD(@AlphaValues[PADDING - Offset], PColor32Array(@Bitmap.ScanLine[DstY][X1]), FColor, (Count + Offset + 2) div 3);

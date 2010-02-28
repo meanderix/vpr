@@ -29,35 +29,22 @@ interface
 
 {$I GR32.INC}
 
-{ Enable symbol for using SSE2 optimized routines. }
-{.$DEFINE USESSE2}
-
 uses
-  GR32;
+  GR32, Math;
 
 type
   PInteger = ^Integer;
   PSingleArray = GR32.PSingleArray;
   TSingleArray = GR32.TSingleArray;
 
-  TSpanMode = (smUnpacked, smPacked);
-
   PValueSpan = ^TValueSpan;
   TValueSpan = record
     X1, X2: Integer;
-    case Integer of
-      0: (Values: PSingleArray); // smUnpacked - the span contains an array of coverage values
-      1: (Value: Single);        // smPacked - the span consists of a single coverage value
+    Values: PSingleArray;
   end;
 
   TRenderSpanEvent = procedure(const Span: TValueSpan; DstY: Integer) of object;
   TRenderSpanProc = procedure(Data: Pointer; const Span: TValueSpan; DstY: Integer);
-
-  { TPolygonRenderer }
-  TPolygonRenderer = class
-  protected
-    procedure RenderSpan(const Span: TValueSpan; DstY: Integer); virtual; abstract;
-  end;
 
 procedure RenderPolyPolygon(const Points: TArrayOfArrayOfFloatPoint;
   const ClipRect: TFloatRect; const RenderProc: TRenderSpanProc; Data: Pointer = nil); overload;
@@ -71,7 +58,8 @@ procedure RenderPolygon(const Points: TArrayOfFloatPoint;
 implementation
 
 uses
-  Windows, SysUtils, Math, GR32_Math, GR32_LowLevel, GR32_Blend, GR32_VectorUtils;
+  Windows, SysUtils, GR32_Math, GR32_LowLevel, GR32_Blend, GR32_VectorUtils,
+  GR32_System;
 
 type
   TArrayOfValueSpan = array of TValueSpan;
@@ -91,20 +79,23 @@ type
     Segments: PLineSegmentArray;
     Count: Integer;
     Y: Integer;
-    X1, X2: Integer;
-    SpanData: PSingleArray;
   end;
   TScanLines = array of TScanLine;
   PScanLineArray = ^TScanLineArray;
   TScanLineArray = array [0..0] of TScanLine;
 
-procedure IntegrateSegment(const P1, P2: TFloatPoint; Values: PSingleArray);
+  TCumSumProc = procedure(Values: PSingleArray; Count: Integer);
+
+var
+  CumSum: TCumSumProc;
+
+procedure IntegrateSegment(var P1, P2: TFloatPoint; Values: PSingleArray);
 var
   X1, X2, I: Integer;
   Dx, Dy, DyDx, Sx, Y, fracX1, fracX2: TFloat;
 begin
-  X1 := Round(P1.X);
-  X2 := Round(P2.X);
+  X1 := _Round(P1.X);
+  X2 := _Round(P2.X);
   if X1 = X2 then
   begin
     Values[X1] := Values[X1] + 0.5 * (P2.X - P1.X) * (P1.Y + P2.Y);
@@ -148,8 +139,7 @@ begin
   end;
 end;
 
-{$IFNDEF USESSE2}
-procedure CumSum(Values: PSingleArray; Count: Integer);
+procedure _CumSum(Values: PSingleArray; Count: Integer);
 var
   I: Integer;
   V: TFloat;
@@ -163,186 +153,171 @@ begin
   end;
 end;
 
-{$ELSE}
-
 // SSE2 version -- Credits: Sanyin <prevodilac@hotmail.com>
-procedure CumSum(Values: PSingleArray; Count: Integer);
+procedure SSE2_CumSum(Values: PSingleArray; Count: Integer);
 asm
-        mov     ecx,edx
-        cmp     ecx,2   //if count<2, exit
-        jl      @end
-        cmp     ecx,32  //if count<32, avoid sse2 overhead
-        jl      @small
+        MOV     ECX,EDX
+        CMP     ECX,2       // if count < 2, exit
+        JL      @END
+        CMP     ECX,32      // if count < 32, avoid SSE2 overhead
+        JL      @SMALL
 
 //////////// ALIGN////////////////
-        push    ebx
-        pxor    xmm4, xmm4
-        mov     ebx,eax
-        and     ebx,15       //get aligned count
-        jz      @endaligning //already aligned
-        add     ebx,-16
-        neg     ebx          //get bytes to advance
-        jz      @endaligning //already aligned
+        PUSH    EBX
+        PXOR    XMM4,XMM4
+        MOV     EBX,EAX
+        AND     EBX,15       // get aligned count
+        JZ      @ENDALIGNING // already aligned
+        ADD     EBX,-16
+        NEG     EBX          // get bytes to advance
+        JZ      @ENDALIGNING // already aligned
 
-        mov     ecx,ebx
-        sar     ecx,2        //div with 4 to get cnt
-        sub     edx,ecx
+        MOV     ECX,EBX
+        SAR     ECX,2        // div with 4 to get cnt
+        SUB     EDX,ECX
 
-        add     eax,4
-        dec     ecx
-        jz      @setuplast   //one element
+        ADD     EAX,4
+        DEC     ECX
+        JZ      @SETUPLAST   // one element
 
-@aligningloop:
-        fld     dword ptr [eax-4]
-        fadd    dword ptr [eax]
-        fstp    dword ptr [eax]
-        add     eax,4
-        dec     ecx
-        jnz     @aligningloop
+@ALIGNINGLOOP:
+        FLD     DWORD PTR [EAX-4]
+        FADD    DWORD PTR [EAX]
+        FSTP    DWORD PTR [EAX]
+        ADD     EAX,4
+        DEC     ECX
+        JNZ     @ALIGNINGLOOP
 
-@setuplast:
-        MOVUPS  xmm4,[eax-4]
-        PSLLDQ  xmm4,12
-        PSRLDQ  xmm4,12
+@SETUPLAST:
+        MOVUPS  XMM4,[EAX-4]
+        PSLLDQ  XMM4,12
+        PSRLDQ  XMM4,12
 
-@endaligning:
-        pop     ebx
+@ENDALIGNING:
+        POP     EBX
 //////////////////////////////////
 
-        push    ebx
-        mov     ecx,edx
-        sar     ecx,2
+        PUSH    EBX
+        MOV     ECX,EDX
+        SAR     ECX,2
 
-@loop:
-        MOVAPS  xmm0,[eax]
-//check if zero (4 values)
-        pxor    xmm5,xmm5
-        PCMPEQD xmm5,xmm0
+@LOOP:
+        MOVAPS  XMM0,[EAX]
+// check if zero (4 values)
+        PXOR    XMM5,XMM5
+        PCMPEQD XMM5,XMM0
         PMOVMSKB EBX,XMM5
-        cmp     ebx,$0000ffff
-        jne     @normal
+        CMP     EBX,$0000FFFF
+        JNE     @NORMAL
         PSHUFD  XMM0,XMM4,0
-        jmp     @skip
+        JMP     @SKIP
 
-@normal:
-        ADDPS   xmm0,xmm4
-        PSHUFD  XMM1,XMM0,$e4
-        PSHUFD  XMM2,XMM0,$e4
-        PSHUFD  XMM3,XMM0,$e4
-        PSLLDQ  xmm1,4
-        PSLLDQ  xmm2,8
-        PSLLDQ  xmm3,12
-        ADDPS   xmm2,xmm3
-        ADDPS   xmm1,xmm2
-        ADDPS   xmm0,xmm1
-        PSHUFLW XMM4, XMM0, $e4
-        PSRLDQ  xmm4,12
+@NORMAL:
+        ADDPS   XMM0,XMM4
+        PSHUFD  XMM1,XMM0,$E4
+        PSHUFD  XMM2,XMM0,$E4
+        PSHUFD  XMM3,XMM0,$E4
+        PSLLDQ  XMM1,4
+        PSLLDQ  XMM2,8
+        PSLLDQ  XMM3,12
+        ADDPS   XMM2,XMM3
+        ADDPS   XMM1,XMM2
+        ADDPS   XMM0,XMM1
+        PSHUFLW XMM4,XMM0,$E4
+        PSRLDQ  XMM4,12
 
-@skip:
-        MOVAPS  [eax],xmm0
-        add     eax,16
-        sub     ecx,1
-        jnz     @loop
-        pop     ebx
+@SKIP:
+        MOVAPS  [EAX],XMM0
+        ADD     EAX,16
+        SUB     ECX,1
+        JNZ     @LOOP
+        POP     EBX
 
-        mov     ecx,edx
-        sar     ecx,2
-        shl     ecx,2
-        sub     edx,ecx
-        mov     ecx,edx
-        jz      @end
+        MOV     ECX,EDX
+        SAR     ECX,2
+        SHL     ECX,2
+        SUB     EDX,ECX
+        MOV     ECX,EDX
+        JZ      @END
 
-@loop2:
-        fld     dword ptr [eax-4]
-        fadd    dword ptr [eax]
-        fstp    dword ptr [eax]
-        add     eax,4
-        dec     ecx
-        jnz     @loop2
-        ret
+@LOOP2:
+        FLD     DWORD PTR [EAX-4]
+        FADD    DWORD PTR [EAX]
+        FSTP    DWORD PTR [EAX]
+        ADD     EAX,4
+        DEC     ECX
+        JNZ     @LOOP2
+        RET
 
-@small:
-        mov     ecx,edx
-        add     eax,4
-        dec     ecx
-@loop3:
-        cmp     dword ptr [eax],0
-        jne     @nonzero
-        mov     edx,dword ptr [eax-4]
-        mov     dword ptr [eax],edx
-        add     eax,4
-        dec     ecx
-        jnz     @loop3
-        ret
-@nonzero:
-        fld     dword ptr [eax-4]
-        fadd    dword ptr [eax]
-        fstp    dword ptr [eax]
-        add     eax,4
-        dec     ecx
-        jnz     @loop3
-@end:
+@SMALL:
+        MOV     ECX,EDX
+        ADD     EAX,4
+        DEC     ECX
+@LOOP3:
+        CMP     DWORD PTR [EAX],0
+        JNE     @NONZERO
+        MOV     EDX,DWORD PTR [EAX-4]
+        MOV     DWORD PTR [EAX],EDX
+        ADD     EAX,4
+        DEC     ECX
+        JNZ     @LOOP3
+        RET
+@NONZERO:
+        FLD     DWORD PTR [EAX-4]
+        FADD    DWORD PTR [EAX]
+        FSTP    DWORD PTR [EAX]
+        ADD     EAX,4
+        DEC     ECX
+        JNZ     @LOOP3
+@END:
 end;
-{$ENDIF}
 
-procedure ExtractSingleSpan(const ScanLine: TScanLine; out Spans: PValueSpanArray;
-  out Count: Integer);
+procedure ExtractSingleSpan(const ScanLine: TScanLine; out Span: TValueSpan;
+  SpanData: PSingleArray);
 var
   I, X: Integer;
-  Values: PSingleArray;
   P: PFloatPoint;
   S: PLineSegment;
   fracX: TFloat;
   Points: PFloatPointArray;
-  N, SpanWidth: Integer;
-  X1, X2: Integer;
+  N: Integer;
 begin
   N := ScanLine.Count * 2;
   Points := @ScanLine.Segments[0];
-  X1 := ScanLine.X1;
-  X2 := ScanLine.X2;
-  SpanWidth := X2 - X1 + 1;
+  Span.X1 := High(Integer);
+  Span.X2 := Low(Integer);
 
-  Count := 1;
-  GetMem(Spans, SizeOf(TValueSpan));
-  //Spans[0].SpanMode := smUnpacked;
-  Spans[0].X1 := X1;
-  Spans[0].X2 := X2;
-
-  FillLongWord(ScanLine.SpanData[0], SpanWidth + 1, 0);
-  Spans[0].Values := @ScanLine.SpanData[0];
-
-  Values := @ScanLine.SpanData[-X1];
   for I := 0 to N - 1 do
   begin
     P := @Points[I];
+    X := _Round(P.X);
+    if X < Span.X1 then Span.X1 := X;
     if P.Y = 1 then
     begin
-      X := Round(P.X);
       fracX := P.X - X;
-
       if Odd(I) then
       begin
-        Values[X] := Values[X] + (1 - fracX);
-        Inc(X);
-        Values[X] := Values[X] + fracX;
+        SpanData[X] := SpanData[X] + (1 - fracX); Inc(X);
+        SpanData[X] := SpanData[X] + fracX;
       end
       else
       begin
-        Values[X] := Values[X] - (1 - fracX);
-        Inc(X);
-        Values[X] := Values[X] - fracX;
+        SpanData[X] := SpanData[X] - (1 - fracX); Inc(X);
+        SpanData[X] := SpanData[X] - fracX;
       end;
     end;
+    if X > Span.X2 then Span.X2 := X;
   end;
 
-  CumSum(@Values[X1], SpanWidth);
+  CumSum(@SpanData[Span.X1], Span.X2 - Span.X1 + 1);
 
   for I := 0 to ScanLine.Count - 1 do
   begin
     S := @ScanLine.Segments[I];
-    IntegrateSegment(S[0], S[1], Values);
+    IntegrateSegment(S[0], S[1], SpanData);
   end;
+
+  Span.Values := @SpanData[Span.X1];
 end;
 
 (*
@@ -457,9 +432,8 @@ begin
 end;
 *)
 
-procedure AddSegment(const X1, Y1, X2, Y2: TFloat; var ScanLine: TScanLine);
+procedure AddSegment(const X1, Y1, X2, Y2: TFloat; var ScanLine: TScanLine); {$IFDEF USEINLINING} inline; {$ENDIF}
 var
-  V1, V2: Integer;
   S: PLineSegment;
 begin
   if (Y1 = 0) and (Y2 = 0) then Exit;  {** needed for proper clipping }
@@ -473,28 +447,15 @@ begin
   S[0].Y := Y1;
   S[1].X := X2;
   S[1].Y := Y2;
-
-  V1 := Round(X1);
-  V2 := Round(X2);
-  if V1 < V2 then
-  begin
-    ScanLine.X1 := Min(V1, ScanLine.X1);
-    ScanLine.X2 := Max(V2, ScanLine.X2);
-  end
-  else
-  begin
-    ScanLine.X1 := Min(V2, ScanLine.X1);
-    ScanLine.X2 := Max(V1, ScanLine.X2);
-  end;
 end;
 
-procedure DivideSegment(const P1, P2: TFloatPoint; const ScanLines: PScanLineArray);
+procedure DivideSegment(var P1, P2: TFloatPoint; const ScanLines: PScanLineArray);
 var
   Y, Y1, Y2: Integer;
   k, X: TFloat;
 begin
-  Y1 := Round(P1.Y);
-  Y2 := Round(P2.Y);
+  Y1 := _Round(P1.Y);
+  Y2 := _Round(P2.Y);
 
   if Y1 = Y2 then
   begin
@@ -541,7 +502,7 @@ begin
   YMax := Low(Integer);
   for I := 0 to N - 1 do
   begin
-    Y := Round(Points[I].Y);
+    Y := _Round(Points[I].Y);
     if YMin > Y then YMin := Y;
     if YMax < Y then YMax := Y;
   end;
@@ -550,11 +511,11 @@ begin
   PScanLines := @ScanLines[-YMin];
 
   {** compute array sizes for each scanline }
-  J0 := Round(Points[0].Y);
+  J0 := _Round(Points[0].Y);
   for I := 1 to N - 1 do
   begin
     J1 := J0;
-    J0 := Round(Points[I].Y);
+    J0 := _Round(Points[I].Y);
     if J0 <= J1 then
     begin
       Inc(PScanLines[J0].Count);
@@ -575,8 +536,6 @@ begin
     GetMem(ScanLines[I].Segments, J * SizeOf(TLineSegment));
     ScanLines[I].Count := 0;
     ScanLines[I].Y := YMin + I;
-    ScanLines[I].X1 := High(Integer);
-    ScanLines[I].X2 := Low(Integer);
   end;
 
   for I := 0 to N - 2 do
@@ -602,8 +561,6 @@ begin
     begin
       SrcCount := Src[I].Count;
       DstCount := Dst[J].Count;
-      Temp[K].X1 := Min(Src[I].X1, Dst[J].X1);
-      Temp[K].X2 := Max(Src[I].X2, Dst[J].X2);
       Temp[K].Count := SrcCount + DstCount;
       Temp[K].Y := Src[I].Y;
       GetMem(Temp[K].Segments, Temp[K].Count * SizeOf(TLineSegment));
@@ -641,31 +598,27 @@ begin
 end;
 
 type
-  TExtractSpanProc = procedure(const ScanLine: TScanLine; out Spans: PValueSpanArray;
-    out Count: Integer);
+  TExtractSpanProc = procedure(const ScanLine: TScanLine; out Span: TValueSpan; //PValueSpanArray;
+    SpanData: PSingleArray);
 
 
-{$O-}
 procedure RenderScanline(var ScanLine: TScanLine;
-  ExtractProc: TExtractSpanProc; RenderProc: TRenderSpanProc; Data: Pointer);
+  ExtractProc: TExtractSpanProc;
+  RenderProc: TRenderSpanProc; Data: Pointer; SpanData: PSingleArray; X1, X2: Integer);
 var
-  Spans: PValueSpanArray;
-  I, Count: Integer;
+  Span: TValueSpan;
 begin
   if ScanLine.Count > 0 then
   begin
-    {** N: pad to the left and to the right to support floating point accumulation errors }
-    ScanLine.SpanData := StackAlloc((ScanLine.X2 - ScanLine.X1 + 3) * SizeOf(Single));
-    Inc(PFloat(ScanLine.SpanData));
-    ExtractProc(ScanLine, Spans, Count);
-    for I := 0 to Count - 1 do
-      RenderProc(Data, Spans[I], ScanLine.Y);
-    FreeMem(Spans);
-    Dec(PFloat(ScanLine.SpanData));
-    StackFree(ScanLine.SpanData);
+    ExtractProc(ScanLine, Span, SpanData);
+    if Span.X1 < X1 then Span.X1 := X1;
+    if Span.X2 > X2 then Span.X2 := X2;
+    if Span.X2 < Span.X1 then Exit;
+
+    RenderProc(Data, Span, ScanLine.Y);
+    FillLongWord(SpanData[Span.X1], Span.X2 - Span.X1 + 1, 0);
   end;
 end;
-{$O+}
 
 procedure RenderPolyPolygon(const Points: TArrayOfArrayOfFloatPoint;
   const ClipRect: TFloatRect; const RenderProc: TRenderSpanProc; Data: Pointer);
@@ -675,6 +628,7 @@ var
   Poly: TArrayOfFloatPoint;
   SavedRoundMode: TFPURoundingMode;
   CX1, CX2: Integer;
+  SpanData: PSingleArray;
 begin
   if Length(Points) = 0 then Exit;
   SavedRoundMode := GetRoundMode;
@@ -692,17 +646,17 @@ begin
 
     CX1 := Round(ClipRect.Left);
     CX2 := -Round(-ClipRect.Right) - 1;
+
+    I := CX2 - CX1 + 3;
+    GetMem(SpanData, I * SizeOf(Single));
+    FillLongWord(SpanData^, I, 0);
+
     for I := 0 to High(ScanLines) do
     begin
-      if ScanLines[I].X1 < CX1 then ScanLines[I].X1 := CX1;
-      if ScanLines[I].X2 > CX2 then ScanLines[I].X2 := CX2;
-      if ScanLines[I].X1 <= ScanLines[I].X2 then
-      begin
-        RenderScanline(ScanLines[I], ExtractSingleSpan, RenderProc, Data);
-      end;
+      RenderScanline(ScanLines[I], ExtractSingleSpan, RenderProc, Data, @SpanData[-CX1 + 1], CX1, CX2);
       FreeMem(ScanLines[I].Segments);
-      ScanLines[I].SpanData := nil;
     end;
+    FreeMem(SpanData);
   finally
     SetRoundMode(SavedRoundMode);
   end;
@@ -731,5 +685,11 @@ begin
   with TMethod(RenderProc) do
     RenderPolygon(Points, ClipRect, Code, Data);
 end;
+
+const
+  CumSumProcs: array [Boolean] of TCumSumProc = (_CumSum, SSE2_CumSum);
+
+initialization
+  CumSum := CumSumProcs[HasInstructionSet(ciSSE2)];
 
 end.
