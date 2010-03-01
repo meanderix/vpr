@@ -365,6 +365,9 @@ begin
   cairo_set_line_width(cr, 1.0);
   //cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
 {$ENDIF}
+{$IFDEF DIRECT2D}
+  d2d := TDirect2DCanvas.Create(Img.Bitmap.Handle, Img.Bitmap.BoundsRect);
+{$ENDIF}
 end;
 
 procedure TMainForm.FormDestroy(Sender: TObject);
@@ -385,6 +388,9 @@ begin
 {$IFDEF CAIRO}
   cairo_destroy(cr);
   cairo_surface_destroy(surface);
+{$ENDIF}
+{$IFDEF DIRECT2D}
+  d2d.Free;
 {$ENDIF}
 end;
 
