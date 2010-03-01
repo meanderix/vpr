@@ -2,12 +2,12 @@ program VPR_Example;
 
 uses
   Forms,
-  Unit1 in 'Unit1.pas' {Form1};
+  MainUnit in 'MainUnit.pas' {MainForm};
 
 {$R *.res}
 
 begin
   Application.Initialize;
-  Application.CreateForm(TForm1, Form1);
+  Application.CreateForm(TMainForm, MainForm);
   Application.Run;
 end.

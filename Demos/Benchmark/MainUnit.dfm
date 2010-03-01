@@ -1,4 +1,4 @@
-object Form1: TForm1
+object MainForm: TMainForm
   Left = 616
   Top = 132
   Caption = 'GR32 / AggPas / GDI+ benchmark tool'
@@ -12,12 +12,11 @@ object Form1: TForm1
   Font.Style = []
   OldCreateOrder = False
   Position = poScreenCenter
-  WindowState = wsMinimized
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   PixelsPerInch = 96
   TextHeight = 13
-  object Panel1: TPanel
+  object pnlControl: TPanel
     Left = 0
     Top = 496
     Width = 791
@@ -25,7 +24,7 @@ object Form1: TForm1
     Align = alBottom
     BevelOuter = bvNone
     TabOrder = 0
-    object Label1: TLabel
+    object lblSeed: TLabel
       Left = 152
       Top = 75
       Width = 61
@@ -88,14 +87,14 @@ object Form1: TForm1
         '2k text output')
       TabOrder = 2
     end
-    object GroupBox1: TGroupBox
+    object gbResults: TGroupBox
       Left = 344
       Top = 8
       Width = 433
       Height = 233
       Caption = 'Benchmark Results'
       TabOrder = 3
-      object Memo1: TMemo
+      object meResults: TMemo
         Left = 8
         Top = 16
         Width = 417
@@ -167,7 +166,7 @@ object Form1: TForm1
       TabOrder = 9
     end
   end
-  object Panel2: TPanel
+  object pnlImage: TPanel
     Left = 0
     Top = 0
     Width = 791

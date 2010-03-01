@@ -4,13 +4,13 @@ uses
   FastMM4,
   FastMove,
   Forms,
-  MainUnit in 'MainUnit.pas' {Form1};
+  MainUnit in 'MainUnit.pas' {MainForm};
 
 {$R *.res}
 begin
   Application.Initialize;
   Application.Title := 'GR32_PolygonEx Benchmark Tool';
-  Application.CreateForm(TForm1, Form1);
+  Application.CreateForm(TMainForm, MainForm);
   Application.Run;
 
 end.

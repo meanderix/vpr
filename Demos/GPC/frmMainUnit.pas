@@ -5,11 +5,7 @@ It relies on GPC (http://www.cs.man.ac.uk/~toby/alan/software/ ,
 http://www.cs.man.ac.uk/~toby/alan/software/gpc.html)
 and Graphics32 (http://graphics32.org).
 
-It also uses TQRbwZoomBox2 which is a public domain custom component
-included with the source code of GPC-Test.
-
-To compile GPC-Test first, you must first install Graphics32
-and then TQRbwZoomBox2 in Delphi.
+To compile GPC-Test first, you must first install Graphics32.
 
 Neither Graphics32 nor GPC are in the public domain. Graphics32 is covered
 by the MPL 1.1 license. GPC is free for non-commercial use.
@@ -18,6 +14,10 @@ Change log:
  27 February 2010, Mattias Andersson (mattias@centaurix.com):
   - Project updated for VPR polygon rasterizer (http://vpr.sourceforge.net);
   - Removed ZoomBox and TjvFileEdit dependencies.
+
+ 1 March 2010, Christian Budde (Christian@savioursofsoul.de:
+  - Refactoring;
+  - minor formating.
 }
 
 unit frmMainUnit;
@@ -25,9 +25,9 @@ unit frmMainUnit;
 interface
 
 uses
-  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ExtCtrls, GR32, GR32_Layers, GR32_PolygonsEx,
-  GR32_Polygons, GPC, Mask, XPMan, GR32_VectorUtils, GR32_Image;
+  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
+  StdCtrls, ExtCtrls, Dialogs, Mask, XPMan, GR32, GR32_Image, GR32_Layers,
+  GR32_Polygons, GR32_PolygonsEx, GR32_VectorUtils, GPC;
 
 type
   TfrmMain = class(TForm)
@@ -42,12 +42,13 @@ type
       StageNum: Cardinal);
     procedure Image32Resize(Sender: TObject);
   private
-    Polygon1: Tgpc_polygon;
-    Polygon2: Tgpc_polygon;
-    ResultPolygon: Tgpc_polygon;
-    Tristrip: Tgpc_tristrip;
+    FPolygon1: Tgpc_polygon;
+    FPolygon2: Tgpc_polygon;
+    FResultPolygon: Tgpc_polygon;
+    FTriStrip: Tgpc_tristrip;
     FDrawing: Boolean;
     FShouldUpdate: Boolean;
+
     // Display code
     procedure DrawContours(Dst: TBitmap32);
     procedure DrawTristrip(Dst: TBitmap32);
@@ -58,18 +59,16 @@ type
     procedure UpdateScale;
     procedure UpdateClipOperation;
     procedure ReadFiles;
-    function TriStripToPolyPolygon(
-      Tristrip: Tgpc_tristrip): TArrayOfArrayOfFloatPoint;
+    function TriStripToPolyPolygon(TriStrip: Tgpc_tristrip): TArrayOfArrayOfFloatPoint;
     procedure DrawAPolygon(Dst: TBitmap32; APolygon: Tgpc_polygon;
       FillColor: TColor32; Stipple: Boolean);
-    { Private declarations }
   public
-    { Public declarations }
     MaxY: TFloat;
     MinY: TFloat;
     MaxX: TFloat;
     MinX: TFloat;
     ScaleX, ScaleY: TFloat;
+
     { convert to 'device' coordinates }
     function LPtoDP(const P: TFloatPoint): TFloatPoint;
   end;
@@ -106,8 +105,8 @@ begin
 
   if FileExists(FileA) and FileExists(FileB) then
   begin
-    ReadPolygon(Polygon1, FileA);
-    ReadPolygon(Polygon2, FileB);
+    ReadPolygon(FPolygon1, FileA);
+    ReadPolygon(FPolygon2, FileB);
     UpdateClipOperation;
     UpdateScale;
   end;
@@ -135,13 +134,13 @@ begin
   case rgOutputType.ItemIndex of
     0:
       begin
-        gpc_free_polygon(@ResultPolygon);
-        gpc_polygon_clip(Tgpc_op(rgClipOperation.ItemIndex), @Polygon1, @Polygon2, @ResultPolygon);
+        gpc_free_polygon(@FResultPolygon);
+        gpc_polygon_clip(Tgpc_op(rgClipOperation.ItemIndex), @FPolygon1, @FPolygon2, @FResultPolygon);
       end;
     1:
       begin
-        gpc_free_tristrip(@Tristrip);
-        gpc_tristrip_clip(Tgpc_op(rgClipOperation.ItemIndex), @Polygon1, @Polygon2, @Tristrip);
+        gpc_free_tristrip(@FTriStrip);
+        gpc_tristrip_clip(Tgpc_op(rgClipOperation.ItemIndex), @FPolygon1, @FPolygon2, @FTriStrip);
       end;
   end;
   Image32.Invalidate;
@@ -157,14 +156,14 @@ begin
   MinY := 0;
   MaxX := 0;
   MinX := 0;
-  GetMinMax(Polygon1, FirstFound, MaxY, MinY, MaxX, MinX);
-  GetMinMax(Polygon2, FirstFound, MaxY, MinY, MaxX, MinX);
+  GetMinMax(FPolygon1, FirstFound, MaxY, MinY, MaxX, MinX);
+  GetMinMax(FPolygon2, FirstFound, MaxY, MinY, MaxX, MinX);
   Dx := MaxX - MinX;
   Dy := MaxY - MinY;
-  MinX := MinX - Dx*0.05;
-  MaxX := MaxX + Dx*0.05;
-  MinY := MinY - Dy*0.05;
-  MaxY := MaxY + Dy*0.05;
+  MinX := MinX - Dx * 0.05;
+  MaxX := MaxX + Dx * 0.05;
+  MinY := MinY - Dy * 0.05;
+  MaxY := MaxY + Dy * 0.05;
 end;
 
 procedure TfrmMain.GetMinMax(Polygon: Tgpc_polygon; var FirstFound: Boolean;
@@ -295,16 +294,16 @@ begin
 
   // draw the result of the clipping operation.
   case rgOutputType.ItemIndex of
-    0: DrawAPolygon(Dst, ResultPolygon, $ffcc99ff, False);
+    0: DrawAPolygon(Dst, FResultPolygon, $ffcc99ff, False);
     1: DrawTristrip(Dst);
   end;
 
   // Draw the polygons.
-  DrawAPolygon(Dst, Polygon1, clTransparent32, False);
-  DrawAPolygon(Dst, Polygon2, clTransparent32, True);
+  DrawAPolygon(Dst, FPolygon1, clTransparent32, False);
+  DrawAPolygon(Dst, FPolygon2, clTransparent32, True);
 end;
 
-function TfrmMain.TriStripToPolyPolygon(Tristrip: Tgpc_tristrip): TArrayOfArrayOfFloatPoint;
+function TfrmMain.TriStripToPolyPolygon(TriStrip: Tgpc_tristrip): TArrayOfArrayOfFloatPoint;
 var
   Count: Integer;
   V3: Tgpc_vertex;
@@ -315,13 +314,13 @@ var
   StripIndex: Integer;
 begin
   Count := 0;
-  for StripIndex := 0 to Tristrip.num_strips - 1 do
-    Inc(Count, Tristrip.Strip[StripIndex].num_vertices - 2);
+  for StripIndex := 0 to TriStrip.num_strips - 1 do
+    Inc(Count, TriStrip.Strip[StripIndex].num_vertices - 2);
   SetLength(Result, Count, 4);
   Count := 0;
-  for StripIndex := 0 to Tristrip.num_strips - 1 do
+  for StripIndex := 0 to TriStrip.num_strips - 1 do
   begin
-    Strip := Tristrip.Strip[StripIndex];
+    Strip := TriStrip.Strip[StripIndex];
 
     for VertexIndex := 0 to Strip.num_vertices - 3 do
     begin
@@ -354,7 +353,7 @@ procedure TfrmMain.DrawTristrip(Dst: TBitmap32);
 var
   Points: TArrayOfArrayOfFloatPoint;
 begin
-  Points := TriStripToPolyPolygon(Tristrip);
+  Points := TriStripToPolyPolygon(FTriStrip);
   PolyPolygonFS(Dst, Points, $ffccff99, pfWinding);
 end;
 
@@ -370,10 +369,10 @@ end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
 begin
-  gpc_free_polygon(@Polygon1);
-  gpc_free_polygon(@Polygon2);
-  gpc_free_polygon(@ResultPolygon);
-  gpc_free_tristrip(@Tristrip);
+  gpc_free_polygon(@FPolygon1);
+  gpc_free_polygon(@FPolygon2);
+  gpc_free_polygon(@FResultPolygon);
+  gpc_free_tristrip(@FTriStrip);
 end;
 
 end.
