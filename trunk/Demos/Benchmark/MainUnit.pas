@@ -71,34 +71,31 @@ uses
 {$IFDEF DIRECT2D},
   Direct2D, D2D1
 {$ENDIF};
+
 type
-  TForm1 = class(TForm)
-    Panel1: TPanel;
+  TMainForm = class(TForm)
     btnBenchmark: TButton;
-    Panel2: TPanel;
+    cbAllRasterizers: TCheckBox;
+    cbAllTests: TCheckBox;
+    cbOpaque: TCheckBox;
+    cbStroke: TCheckBox;
+    gbResults: TGroupBox;
+    gbSeed: TGaugeBar;
     Img: TImage32;
+    lblSeed: TLabel;
+    meResults: TMemo;
+    pnlControl: TPanel;
+    pnlImage: TPanel;
+    pnlSeed: TPanel;
     rgRasterizer: TRadioGroup;
     rgTest: TRadioGroup;
-    GroupBox1: TGroupBox;
-    Memo1: TMemo;
-    cbStroke: TCheckBox;
-    cbOpaque: TCheckBox;
-    cbAllTests: TCheckBox;
-    cbAllRasterizers: TCheckBox;
-    gbSeed: TGaugeBar;
-    Label1: TLabel;
-    pnlSeed: TPanel;
-    procedure btnBenchmarkClick(Sender: TObject);
-    procedure rgRasterizerClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure ImgPaintStage(Sender: TObject; Buffer: TBitmap32;
-      StageNum: Cardinal);
+    procedure btnBenchmarkClick(Sender: TObject);
     procedure gbSeedChange(Sender: TObject);
-  private
-    { Private declarations }
+    procedure ImgPaintStage(Sender: TObject; Buffer: TBitmap32; StageNum: Cardinal);
+    procedure rgRasterizerClick(Sender: TObject);
   public
-    { Public declarations }
     Polygon: TArrayOfArrayOfFloatPoint;
     TextPolygon: array [0..5] of TArrayOfArrayOfFloatPoint;
     AAMode: TAntialiasMode;
@@ -137,7 +134,7 @@ type
   end;
 
 var
-  Form1: TForm1;
+  MainForm: TMainForm;
 
 const
   XSIZE = 640;
@@ -161,8 +158,8 @@ const
     'aliqua. Ut enim ad minim veniam, quis nostrud exercitation' + #13#10 +
     'ullamco laboris nisi ut aliquip ex ea commodo consequat.',
     'The quick brown fox jumps over the lazy dog.',
-    'Jackdaws love my big sphinx of quartz.'
-  );
+    'Jackdaws love my big sphinx of quartz.');
+  ONE255TH : Double = 1 / 255;  
 
 type
   TFontEntry = record
@@ -181,9 +178,47 @@ const
     (Name: 'Garamond'; Size: 12; Style: [])
   );
 
-function RandColor: TColor32;
+procedure SinCos(const Argument: TFloat; var Sin, Cos: TFloat);
+asm
+  fld     Argument
+  fsincos
+  fstp    edx.TFloat   // Cos
+  fstp    eax.TFloat   // Sin
+end;
+
+function Ellipse(const X, Y, Rx, Ry: TFloat): TArrayOfFloatPoint;
+const
+  M : TFloat = 2 * System.Pi / 100;
+var
+  I: Integer;
+  t: TFloat;
+  Data : array [0..3] of TFloat;
 begin
-  Result := Random($ffffffff) and $ff777777 + $333333;
+  SetLength(Result, 100);
+
+  // first item
+  Result[0].X := Rx + X;
+  Result[0].Y := Y;
+
+  // calculate complex offset
+  SinCos(M, Data[0], Data[1]);
+  Data[2] := Data[0];
+  Data[3] := Data[1];
+
+  // second item
+  Result[1].X := Rx * Data[3] + X;
+  Result[1].Y := Ry * Data[2] + Y;
+
+  // other items
+  for I := 2 to 99 do
+  begin
+    t := Data[3];
+    Data[3] := Data[3] * Data[1] - Data[2] * Data[0];
+    Data[2] := Data[2] * Data[1] + t * Data[0];
+
+    Result[I].X := Rx * Data[3] + X;
+    Result[I].Y := Ry * Data[2] + Y;
+  end;
 end;
 
 function CreateLine(x1, y1, x2, y2, width: TFloat): TArrayOfFloatPoint;
@@ -192,7 +227,7 @@ var
 begin
   dx := x2 - x1;
   dy := y2 - y1;
-  d := sqrt(dx*dx + dy*dy);
+  d := Sqrt(Sqr(dx) + Sqr(dy));
   if d <> 0 then
   begin
     dx := width * (y2 - y1) / d;
@@ -211,39 +246,150 @@ begin
   end;
 end;
 
-function Ellipse(const X, Y, Rx, Ry: TFloat): TArrayOfFloatPoint;
-const
-  M: TFloat = 1/100*2*System.Pi;
+function MakeCurve(const Points: TArrayOfFloatPoint; Kernel: TCustomKernel;
+  Closed: Boolean; StepSize: Integer): TArrayOfFloatPoint;
 var
-  I: Integer;
-  t: TFloat;
+  I, J, F, H, Index, LastIndex, Steps, R: Integer;
+  K, V, W, dx, dy, X, Y: TFloat;
+  Filter: TFilterMethod;
+  WrapProc: TWrapProc;
+  PPoint: PFloatPoint;
+const
+  WRAP_PROC: array[Boolean] of TWrapProc = (Clamp, Wrap);
 begin
-  SetLength(Result, 100);
-  for I := 0 to 99 do
+  WrapProc := Wrap_PROC[Closed];
+  Filter := Kernel.Filter;
+  R := Ceil(Kernel.GetWidth);
+  H := High(Points);
+
+  LastIndex := H - Ord(not Closed);
+  Steps := 0;
+  for I := 0 to LastIndex do
   begin
-    t := I * M;
-    Result[I].X := Rx * Cos(t) + X;
-    Result[I].Y := Ry * Sin(t) + Y;
+    Index := WrapProc(I + 1, H);
+    dx := Points[Index].X - Points[I].X;
+    dy := Points[Index].Y - Points[I].Y;
+    Inc(Steps, Floor(Hypot(dx, dy) / StepSize) + 1);
+  end;
+
+  SetLength(Result, Steps);
+  PPoint := @Result[0];
+
+  for I := 0 to LastIndex do
+  begin
+    Index := WrapProc(I + 1, H);
+    dx := Points[Index].X - Points[I].X;
+    dy := Points[Index].Y - Points[I].Y;
+    Steps := Floor(Hypot(dx, dy) / StepSize);
+    if Steps > 0 then
+    begin
+      K := 1 / Steps;
+      V := 0;
+      for J := 0 to Steps do
+      begin
+        X := 0; Y := 0;
+        for F := -R to R do
+        begin
+          Index := WrapProc(I - F, H);
+          W := Filter(F + V);
+          X := X + W * Points[Index].X;
+          Y := Y + W * Points[Index].Y;
+        end;
+        PPoint^ := FloatPoint(X, Y);
+        Inc(PPoint);
+        V := V + K;
+      end;
+    end;
   end;
 end;
 
-function EllipseX(const X, Y, Rx, Ry: TFloat): TArrayOfFixedPoint;
-const
-  M: TFloat = 1/100*2*System.Pi;
-var
-  I: Integer;
-  t: TFloat;
+function RandColor: TColor32;
 begin
-  SetLength(Result, 100);
-  for I := 0 to 99 do
-  begin
-    t := I * M;
-    Result[I].X := Fixed(Rx * Cos(t) + X);
-    Result[I].Y := Fixed(Ry * Sin(t) + Y);
-  end;
+  Result := Random($FFFFFFFF) and $FF777777 + $333333;
 end;
 
-procedure TForm1.btnBenchmarkClick(Sender: TObject);
+
+{ TMainForm }
+
+procedure TMainForm.FormCreate(Sender: TObject);
+var
+  P: PPaintStage;
+begin
+  SetPriorityClass(GetCurrentProcess, HIGH_PRIORITY_CLASS);
+  SetThreadPriority(GetCurrentThread, THREAD_PRIORITY_HIGHEST);
+  with Img.PaintStages[0]^ do
+  begin
+    if Stage = PST_CLEAR_BACKGND then Stage := PST_CUSTOM;
+  end;
+
+  P := Img.PaintStages.Add;
+  P.Stage := PST_CUSTOM;
+  P.Parameter := 1;
+
+  CreateTextPolygons;
+  Img.BufferOversize := 0;
+  Img.Bitmap.SetSize(XSIZE, YSIZE);
+  Img.Bitmap.Clear(clWhite32);
+
+{$IFDEF AGGPAS}
+  Agg2D := TAgg2D.Create;
+  Agg2D.Attach32(Img.Bitmap);
+  Agg2D.LineWidth(1.0);
+{$ENDIF}
+
+{$IFDEF AGGLITE}
+  RBuf := TRenderingBuffer.Create(PByte(Img.Bitmap.Bits), XSIZE, YSIZE, XSIZE * SizeOf(TColor32));
+
+  // Create the renderer and the rasterizer
+  Ren := TRenderer.Create(RBuf);
+  Ren.SpanType := stRGBA32;
+  Ras := TRasterizer.Create;
+  Ras.Gamma(1.0);
+
+  // Setup the rasterizer
+  Ras.FillingRule := frFillNonZero;
+{$ENDIF}
+
+{$IFDEF GDIPLUS}
+  // initialize GDI plus
+  GPGraphics := TGPGraphics.Create(Img.Bitmap.Handle);
+  GPPen := TGPPen.Create(Color);
+  GPPen.SetWidth(1.0);
+  GPBrush := TGPSolidBrush.Create(Color);
+{$ENDIF}
+
+{$IFDEF CAIRO}
+  // initialize cairo
+  surface := cairo_win32_surface_create(Img.Bitmap.Handle);
+  cr := cairo_create(surface);
+  cairo_set_line_width(cr, 1.0);
+  //cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
+{$ENDIF}
+end;
+
+procedure TMainForm.FormDestroy(Sender: TObject);
+begin
+{$IFDEF AGGPAS}
+  Agg2D.Free;
+{$ENDIF}
+{$IFDEF AGGLITE}
+  Ras.Free;
+  Ren.Free;
+  RBuf.Free;
+{$ENDIF}
+{$IFDEF GDIPLUS}
+  GPGraphics.Free;
+  GPPen.Free;
+  GPBrush.Free;
+{$ENDIF}
+{$IFDEF CAIRO}
+  cairo_destroy(cr);
+  cairo_surface_destroy(surface);
+{$ENDIF}
+end;
+
+
+procedure TMainForm.btnBenchmarkClick(Sender: TObject);
 var
   I, J: Integer;
 begin
@@ -262,7 +408,7 @@ begin
   end;
 end;
 
-procedure TForm1.Benchmark;
+procedure TMainForm.Benchmark;
 var
   I, Iter: Integer;
   Dst: TBitmap32;
@@ -273,19 +419,25 @@ begin
   Iter := GetIterations;
   GlobalPerfTimer.Start;
 
-  if rgRasterizer.ItemIndex = 8 then d2d.BeginDraw;
+  {$IFDEF DIRECT2D}
+  if rgRasterizer.ItemIndex = 8 then
+    d2d.BeginDraw;
+  {$ENDIF}
   for I := 0 to Iter - 1 do
   begin
     BuildPolygon;
     RenderPolygon(Dst);
   end;
-  if rgRasterizer.ItemIndex = 8 then d2d.EndDraw;
+  {$IFDEF DIRECT2D}
+  if rgRasterizer.ItemIndex = 8 then
+    d2d.EndDraw;
+  {$ENDIF}
 
   StopTimer;
   Screen.Cursor := crDefault;
 end;
 
-procedure TForm1.BuildPolygon;
+procedure TMainForm.BuildPolygon;
 begin
   SetLength(Polygon, 1);
   case rgTest.ItemIndex of
@@ -297,9 +449,9 @@ begin
   end;
 end;
 
+{$IFDEF LIBART}
 // N1: this is a bit different from LibArt's own callbacks, but it seems to work OK.
 // N2: it should be possible to rewrite it for the even-odd fill rule as well.
-{$IFDEF LIBART}
 procedure LibArtCallback(data: Pointer; y, start: Integer;
   steps: PArtSVPRenderAAStep; n_steps: Integer); cdecl;
 var
@@ -349,7 +501,7 @@ begin
 end;
 {$ENDIF}
 
-procedure TForm1.RenderPolygon(Dst: TBitmap32);
+procedure TMainForm.RenderPolygon(Dst: TBitmap32);
 var
   Color: TColor32;
   Poly: TArrayOfArrayOfFixedPoint;
@@ -364,9 +516,9 @@ var
     Agg2D.ResetPath;
     for J := 0 to High(Polygon) do
     begin
-      Agg2D.MoveTo(Polygon[J][0].X, Polygon[J][0].Y);
+      Agg2D.MoveTo(Polygon[J, 0].X, Polygon[J, 0].Y);
       for I := 1 to High(Polygon[J]) do
-        Agg2D.LineTo(Polygon[J][I].X, Polygon[J][I].Y);
+        Agg2D.LineTo(Polygon[J, I].X, Polygon[J, I].Y);
       Agg2D.ClosePolygon;
     end;
     if cbStroke.Checked then
@@ -386,9 +538,9 @@ var
 
     for J := 0 to High(Polygon) do
     begin
-      Ras.MoveToD(Polygon[J][0].X, Polygon[J][0].Y);
+      Ras.MoveToD(Polygon[J, 0].X, Polygon[J, 0].Y);
       for I := 1 to High(Polygon[J]) do
-        Ras.LineToD(Polygon[J][I].X, Polygon[J][I].Y);
+        Ras.LineToD(Polygon[J, I].X, Polygon[J, I].Y);
       //Agg2D.ClosePolygon;
     end;
     with TColor32Entry(Color) do
@@ -416,7 +568,7 @@ var
       begin
         Path.StartFigure;
         for I := 0 to High(Polygon[J]) - 1 do
-          Path.AddLine(TGPPointF(Polygon[J][I]), TGPPointF(Polygon[J][I + 1]));
+          Path.AddLine(TGPPointF(Polygon[J, I]), TGPPointF(Polygon[J, I + 1]));
         Path.CloseFigure;
       end;
       if cbStroke.Checked then
@@ -451,18 +603,18 @@ var
     begin
       N := Length(Polygon[J]);
       path[K].Code := ART_MOVETO;
-      path[K].X := Polygon[J][0].X;
-      path[K].Y := Polygon[J][0].Y;
+      path[K].X := Polygon[J, 0].X;
+      path[K].Y := Polygon[J, 0].Y;
       Inc(K);
       for I := 1 to N - 1 do
       begin
         path[K].Code := ART_LINETO;
-        path[K].X := Polygon[J][I].X;
-        path[K].Y := Polygon[J][I].Y;
+        path[K].X := Polygon[J, I].X;
+        path[K].Y := Polygon[J, I].Y;
         Inc(K);
       end;
-      path[K].X := Polygon[J][0].X;
-      path[K].Y := Polygon[J][0].Y;
+      path[K].X := Polygon[J, 0].X;
+      path[K].Y := Polygon[J, 0].Y;
       path[K].Code := ART_LINETO;
       Inc(K);
     end;
@@ -479,23 +631,19 @@ var
     I, J: Integer;
   begin
     with TColor32Entry(Color) do
-      cairo_set_source_rgba(cr, r/255, g/255, b/255, a/255);
+      cairo_set_source_rgba(cr, r * ONE255TH, g * ONE255TH, b * ONE255TH, a * ONE255TH);
     cairo_new_path(cr);
     for J := 0 to High(Polygon) do
     begin
-      cairo_move_to(cr, Polygon[J][0].X, Polygon[J][0].Y);
+      cairo_move_to(cr, Polygon[J, 0].X, Polygon[J, 0].Y);
       for I := 1 to High(Polygon[J]) do
-        cairo_line_to(cr, Polygon[J][I].X, Polygon[J][I].Y);
+        cairo_line_to(cr, Polygon[J, I].X, Polygon[J, I].Y);
     end;
     cairo_close_path(cr);
     if cbStroke.Checked then
-    begin
-      cairo_stroke(cr);
-    end
+      cairo_stroke(cr)
     else
-    begin
       cairo_fill(cr);
-    end;
   end;
 {$ENDIF}
 
@@ -591,14 +739,49 @@ begin
   end;
 end;
 
-function TForm1.GetIterations: Integer;
+function TMainForm.GetIterations: Integer;
 const
   Iterations: array [0..4] of Integer = (5000, 20000, 20000, 5000, 2000);
 begin
   Result := Iterations[rgTest.ItemIndex];
 end;
 
-function TForm1.RandomEllipse: TArrayOfFloatPoint;
+function TMainForm.GetFixedPolygon: TArrayOfArrayOfFixedPoint;
+var
+  I, J, L, N: Integer;
+begin
+  L := Length(Polygon);
+  SetLength(Result, L);
+  for J := 0 to L - 1 do
+  begin
+    N := Length(Polygon[J]);
+    SetLength(Result[J], N);
+    for I := 0 to N - 1 do
+    begin
+      Result[J, I] := FixedPoint(Polygon[J, I]);
+    end;
+  end;
+end;
+
+procedure TMainForm.StopTimer;
+var
+  S1, S2, S3: string;
+begin
+  S3 := GlobalPerfTimer.ReadMilliseconds;
+  with rgTest do S1 := Items[ItemIndex];
+  with rgRasterizer do S2 := Items[ItemIndex];
+  meResults.Lines.Add(Format('[%s, %s]: %s ms', [S1, S2, S3]));
+end;
+
+procedure TMainForm.rgRasterizerClick(Sender: TObject);
+const
+  Modes: array [0..5] of TAntialiasMode = (am32times, am16times,
+    am8times, am4times, am2times, amNone);
+begin
+  AAMode := Modes[rgRasterizer.ItemIndex - 8];
+end;
+
+function TMainForm.RandomEllipse: TArrayOfFloatPoint;
 const
   MAXRADIUS = 200;
 var
@@ -612,122 +795,19 @@ begin
   Result := Ellipse(X, Y, Rx, Ry);
 end;
 
-function TForm1.RandomLine: TArrayOfFloatPoint;
-var
-  X1, Y1, X2, Y2: TFloat;
+function TMainForm.RandomLine: TArrayOfFloatPoint;
 begin
-  X1 := Random(XSIZE);
-  X2 := Random(XSIZE);
-  Y1 := Random(YSIZE);
-  Y2 := Random(YSIZE);
-  Result := CreateLine(X1, Y1, X2, Y2, 5);
-end;
-                      
-function TForm1.GetFixedPolygon: TArrayOfArrayOfFixedPoint;
-var
-  I, J, L, N: Integer;
-begin
-  L := Length(Polygon);
-  SetLength(Result, L);
-  for J := 0 to L - 1 do
-  begin
-    N := Length(Polygon[J]);
-    SetLength(Result[J], N);
-    for I := 0 to N - 1 do
-    begin
-      Result[J][I] := FixedPoint(Polygon[J][I]);
-    end;
-  end;
+  Result := CreateLine(Random(XSIZE), Random(YSIZE), Random(XSIZE),
+    Random(YSIZE), 5);
 end;
 
-procedure TForm1.StopTimer;
-var
-  S1, S2, S3: string;
+function TMainForm.RandomLine2: TArrayOfFloatPoint;
 begin
-  S3 := GlobalPerfTimer.ReadMilliseconds;
-  with rgTest do S1 := Items[ItemIndex];
-  with rgRasterizer do S2 := Items[ItemIndex];
-  Memo1.Lines.Add(Format('[%s, %s]: %s ms', [S1, S2, S3]));
+  Result := CreateLine(Random(XSIZE), Random(YSIZE), Random(XSIZE),
+    Random(YSIZE), 0.5);
 end;
 
-procedure TForm1.rgRasterizerClick(Sender: TObject);
-const
-  Modes: array [0..5] of TAntialiasMode = (am32times, am16times,
-    am8times, am4times, am2times, amNone);
-begin
-  AAMode := Modes[rgRasterizer.ItemIndex - 8];
-end;
-
-function TForm1.RandomLine2: TArrayOfFloatPoint;
-var
-  X1, Y1, X2, Y2: TFloat;
-begin
-  X1 := Random(XSIZE);
-  X2 := Random(XSIZE);
-  Y1 := Random(YSIZE);
-  Y2 := Random(YSIZE);
-  Result := CreateLine(X1, Y1, X2, Y2, 0.5);
-end;
-
-
-function MakeCurve(const Points: TArrayOfFloatPoint; Kernel: TCustomKernel;
-  Closed: Boolean; StepSize: Integer): TArrayOfFloatPoint;
-var
-  I, J, F, H, Index, LastIndex, Steps, R: Integer;
-  K, V, W, dx, dy, X, Y: TFloat;
-  Filter: TFilterMethod;
-  WrapProc: TWrapProc;
-  PPoint: PFloatPoint;
-const
-  WRAP_PROC: array[Boolean] of TWrapProc = (Clamp, Wrap);
-begin
-  WrapProc := Wrap_PROC[Closed];
-  Filter := Kernel.Filter;
-  R := Ceil(Kernel.GetWidth);
-  H := High(Points);
-
-  LastIndex := H - Ord(not Closed);
-  Steps := 0;
-  for I := 0 to LastIndex do
-  begin
-    Index := WrapProc(I + 1, H);
-    dx := Points[Index].X - Points[I].X;
-    dy := Points[Index].Y - Points[I].Y;
-    Inc(Steps, Floor(Hypot(dx, dy) / StepSize) + 1);
-  end;
-
-  SetLength(Result, Steps);
-  PPoint := @Result[0];
-
-  for I := 0 to LastIndex do
-  begin
-    Index := WrapProc(I + 1, H);
-    dx := Points[Index].X - Points[I].X;
-    dy := Points[Index].Y - Points[I].Y;
-    Steps := Floor(Hypot(dx, dy) / StepSize);
-    if Steps > 0 then
-    begin
-      K := 1 / Steps;
-      V := 0;
-      for J := 0 to Steps do
-      begin
-        X := 0; Y := 0;
-        for F := -R to R do
-        begin
-          Index := WrapProc(I - F, H);
-          W := Filter(F + V);
-          X := X + W * Points[Index].X;
-          Y := Y + W * Points[Index].Y;
-        end;
-        PPoint^ := FloatPoint(X, Y);
-        Inc(PPoint);
-        V := V + K;
-      end;
-    end;
-  end;
-end;
-
-function TForm1.RandomSpline: TArrayOfFloatPoint;
+function TMainForm.RandomSpline: TArrayOfFloatPoint;
 var
   Input: TArrayOfFloatPoint;
   I: Integer;
@@ -747,84 +827,7 @@ begin
   end;
 end;
 
-procedure TForm1.FormCreate(Sender: TObject);
-var
-  P: PPaintStage;
-begin
-  SetPriorityClass(GetCurrentProcess, HIGH_PRIORITY_CLASS);
-  SetThreadPriority(GetCurrentThread, THREAD_PRIORITY_HIGHEST);
-  with Img.PaintStages[0]^ do
-  begin
-    if Stage = PST_CLEAR_BACKGND then Stage := PST_CUSTOM;
-  end;
-
-  P := Img.PaintStages.Add;
-  P.Stage := PST_CUSTOM;
-  P.Parameter := 1;
-
-  CreateTextPolygons;
-  Img.BufferOversize := 0;
-  Img.Bitmap.SetSize(XSIZE, YSIZE);
-  Img.Bitmap.Clear(clWhite32);
-{$IFDEF AGGPAS}
-  Agg2D := TAgg2D.Create;
-  Agg2D.Attach32(Img.Bitmap);
-  Agg2D.LineWidth(1.0);
-{$ENDIF}
-{$IFDEF AGGLITE}
-  RBuf := TRenderingBuffer.Create(PByte(Img.Bitmap.Bits), XSIZE, YSIZE, XSIZE * SizeOf(TColor32));
-
-  // Create the renderer and the rasterizer
-  Ren := TRenderer.Create(RBuf);
-  Ren.SpanType := stRGBA32;
-  Ras := TRasterizer.Create;
-  Ras.Gamma(1.0);
-
-  // Setup the rasterizer
-  Ras.FillingRule := frFillNonZero;
-{$ENDIF}
-{$IFDEF GDIPLUS}
-  GPGraphics := TGPGraphics.Create(Img.Bitmap.Handle);
-  GPPen := TGPPen.Create(Color);
-  GPPen.SetWidth(1.0);
-  GPBrush := TGPSolidBrush.Create(Color);
-{$ENDIF}
-{$IFDEF CAIRO}
-  surface := cairo_win32_surface_create(Img.Bitmap.Handle);
-	cr := cairo_create(surface);
-  cairo_set_line_width(cr, 1.0);
-  //cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
-{$ENDIF}
-{$IFDEF DIRECT2D}
-  d2d := TDirect2DCanvas.Create(Img.Bitmap.Handle, Img.Bitmap.BoundsRect);
-{$ENDIF}
-end;
-
-procedure TForm1.FormDestroy(Sender: TObject);
-begin
-{$IFDEF AGGPAS}
-  Agg2D.Free;
-{$ENDIF}
-{$IFDEF AGGLITE}
-  Ras.Free;
-  Ren.Free;
-  RBuf.Free;
-{$ENDIF}
-{$IFDEF GDIPLUS}
-  GPGraphics.Free;
-  GPPen.Free;
-  GPBrush.Free;
-{$ENDIF}
-{$IFDEF CAIRO}
-  cairo_destroy(cr);
-  cairo_surface_destroy(surface);
-{$ENDIF}
-{$IFDEF DIRECT2D}
-  d2d.Free;
-{$ENDIF}
-end;
-
-procedure TForm1.CreateTextPolygons;
+procedure TMainForm.CreateTextPolygons;
 var
   I: Integer;
   Tmp: TBitmap32;
@@ -844,7 +847,7 @@ begin
   Tmp.Free;
 end;
 
-function TForm1.RandomText: TArrayOfArrayOfFloatPoint;
+function TMainForm.RandomText: TArrayOfArrayOfFloatPoint;
 var
   I, J: Integer;
   L: Integer;
@@ -862,13 +865,13 @@ begin
     Result[J] := Copy(Src[J]);
     for I := 0 to High(Result[J]) do
     begin
-      Result[J][I].X := Result[J][I].X + Dx;
-      Result[J][I].Y := Result[J][I].Y + Dy;
+      Result[J, I].X := Result[J, I].X + Dx;
+      Result[J, I].Y := Result[J, I].Y + Dy;
     end;
   end;
 end;
 
-procedure TForm1.ImgPaintStage(Sender: TObject; Buffer: TBitmap32;
+procedure TMainForm.ImgPaintStage(Sender: TObject; Buffer: TBitmap32;
   StageNum: Cardinal);
 const            
   Colors: array [0..1] of TColor32 = ($FFFFFFFF, $FFB0B0B0);
@@ -908,7 +911,7 @@ begin
   end;
 end;
 
-procedure TForm1.gbSeedChange(Sender: TObject);
+procedure TMainForm.gbSeedChange(Sender: TObject);
 begin
   pnlSeed.Caption := IntToStr(gbSeed.Position);
 end;

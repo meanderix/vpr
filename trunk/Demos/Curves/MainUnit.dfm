@@ -1,4 +1,4 @@
-object Form1: TForm1
+object MainForm: TMainForm
   Left = 833
   Top = 165
   Caption = 'Curves Example'
@@ -26,13 +26,13 @@ object Form1: TForm1
     ScaleMode = smNormal
     TabOrder = 0
   end
-  object Button2: TButton
+  object btnDrawCurve: TButton
     Left = 8
     Top = 528
     Width = 75
     Height = 25
     Caption = 'Draw Curve'
     TabOrder = 1
-    OnClick = Button2Click
+    OnClick = btnDrawCurveClick
   end
 end

@@ -1,31 +1,27 @@
-unit Unit1;
+unit MainUnit;
 
 interface
 
 uses
-  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, GR32_Image, XPMan;
+  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
+  StdCtrls, XPMan, GR32_Image;
 
 type
-  TForm1 = class(TForm)
+  TMainForm = class(TForm)
     Img: TImage32;
-    Button2: TButton;
-    procedure Button2Click(Sender: TObject);
-  private
-    { Private declarations }
-  public
-    { Public declarations }
+    btnDrawCurve: TButton;
+    procedure btnDrawCurveClick(Sender: TObject);
   end;
 
 var
-  Form1: TForm1;
+  MainForm: TMainForm;
 
 implementation
 
 {$R *.dfm}
 
 uses
-  GR32, AGG2D, Math, GR32_Resamplers, GR32_PolygonsEx, GR32_LowLevel,
+  Math, GR32, GR32_Resamplers, GR32_PolygonsEx, GR32_LowLevel,
   GR32_Polygons;
 
 function CrossProd(X1, Y1, X2, Y2: TFloat): TFloat;
@@ -105,7 +101,7 @@ end;
 
 function Ellipse(const X, Y, Rx, Ry: TFloat): TArrayOfFloatPoint;
 const
-  M: TFloat = 1/360*2*Pi;
+  M: TFloat = Pi / 180;
 var
   I: Integer;
   t: TFloat;
@@ -119,7 +115,7 @@ begin
   end;
 end;
 
-procedure TForm1.Button2Click(Sender: TObject);
+procedure TMainForm.btnDrawCurveClick(Sender: TObject);
 var
   PX, PY: TArrayOfFloatPoint;
   I: Integer;

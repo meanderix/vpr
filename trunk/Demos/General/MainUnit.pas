@@ -1,4 +1,4 @@
-unit Unit1;
+unit MainUnit;
 
 interface
 
@@ -7,17 +7,13 @@ uses
   Dialogs, GR32_Image, GR32_RangeBars, StdCtrls;
 
 type
-  TForm1 = class(TForm)
+  TMainForm = class(TForm)
     Img: TImage32;
     procedure FormCreate(Sender: TObject);
-  private
-    { Private declarations }
-  public
-    { Public declarations }
   end;
 
 var
-  Form1: TForm1;
+  MainForm: TMainForm;
 
 implementation
 
@@ -26,30 +22,61 @@ implementation
 uses
   GR32, GR32_VectorGraphics, GR32_PolygonsEx, GR32_VectorUtils;
 
+procedure SinCos(const Argument: TFloat; var Sin, Cos: TFloat);
+asm
+  fld     Argument
+  fsincos
+  fstp    edx.TFloat   // Cos
+  fstp    eax.TFloat   // Sin
+end;
+
 function Ellipse(const X, Y, Rx, Ry: TFloat): TArrayOfFloatPoint;
 const
-  M: TFloat = 1/360*2*Pi;
+  M : TFloat = Pi / 180;
 var
   I: Integer;
   t: TFloat;
+  Data : array [0..3] of TFloat;
 begin
   SetLength(Result, 360);
-  for I := 0 to 359 do
+
+  // first item
+  Result[0].X := Rx + X;
+  Result[0].Y := Y;
+
+  // calculate complex offset
+  SinCos(M, Data[0], Data[1]);
+  Data[2] := Data[0];
+  Data[3] := Data[1];
+
+  // second item
+  Result[1].X := Rx * Data[3] + X;
+  Result[1].Y := Ry * Data[2] + Y;
+
+  // other items
+  for I := 2 to 359 do
   begin
-    t := I * M;
-    Result[I].X := Rx * Cos(t) + X;
-    Result[I].Y := Ry * Sin(t) + Y;
+    t := Data[3];
+    Data[3] := Data[3] * Data[1] - Data[2] * Data[0];
+    Data[2] := Data[2] * Data[1] + t * Data[0];
+
+    Result[I].X := Rx * Data[3] + X;
+    Result[I].Y := Ry * Data[2] + Y;
   end;
 end;
 
 procedure DrawSimplePolygon(Renderer: TPathRenderer; Cx, Cy, Rx, Ry: TFloat);
 var
   I: Integer;
+const
+  ONE8TH : TFloat = 1 / 8;
+  ONE200TH : TFloat = 1 / 200;
 begin
   Renderer.MoveTo(Cx, Cy);
   for I := 0 to 240 do
   begin
-    Renderer.LineTo(Cx + Rx * I / 200 * Cos(I / 8), Cy + Ry * I / 200 * Sin(I / 8));
+    Renderer.LineTo(Cx + Rx * I * ONE200TH * Cos(I * ONE8TH),
+      Cy + Ry * I * ONE200TH * Sin(I * ONE8TH));
   end;
 end;
 
@@ -75,9 +102,7 @@ begin
   PolygonFS(Dst, Polygon, $7f66cc99);
   Dashed := BuildDashedLine(Polygon, [10, 10, 30, 10]);
   for I := 0 to High(Dashed) do
-  begin
     PolylineFS(Dst, Dashed[I], clBlack32, False, 4);
-  end;
 
   { (c) Render a path with an outline using a path renderer }
   Renderer := TPathRenderer.Create;
@@ -102,25 +127,26 @@ begin
   end;
 end;
 
-procedure TForm1.FormCreate(Sender: TObject);
+procedure TMainForm.FormCreate(Sender: TObject);
 begin
   Img.SetupBitmap(True, clWhite32);
   PaintBitmap(Img.Bitmap);
 end;
 
-function MakeArrayOfFloatPoints(const a: array of single):
-TArrayOfFloatPoint;
+function MakeArrayOfFloatPoints(const a: array of Single): TArrayOfFloatPoint;
 var
-   i, len: integer;
+   i, Len: Integer;
 begin
-   len := length(a) div 2;
-   setlength(result, len);
-   if len = 0 then exit;
-   for i := 0 to len -1 do
-   begin
-     result[i].X := a[i*2];
-     result[i].Y := a[i*2 +1];
-   end;
+  Len := Length(a) div 2;
+  SetLength(Result, Len);
+  if len = 0 then
+    Exit;
+
+  for i := 0 to Len -1 do
+  begin
+    Result[i].X := a[i * 2];
+    Result[i].Y := a[i * 2 + 1];
+  end;
 end;
 
 end.
