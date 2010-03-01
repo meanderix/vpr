@@ -26,13 +26,13 @@ package VPR_D2006;
 
 requires
   rtl,
-  GR32_BDS2006,
-  vcl;
+  vcl,
+  GR32_BDS2006;
 
 contains
   GR32_PolygonsEx in 'GR32_PolygonsEx.pas',
-  gr32_vectorutils in 'gr32_vectorutils.pas',
+  GR32_VectorUtils in 'GR32_VectorUtils.pas',
   GR32_VectorGraphics in 'GR32_VectorGraphics.pas',
-  gr32_vpr in 'gr32_vpr.pas';
+  GR32_VPR in 'GR32_VPR.pas';
 
 end.
