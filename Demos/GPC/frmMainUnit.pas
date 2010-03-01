@@ -26,7 +26,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ExtCtrls, ZoomBox2, GR32, GR32_Layers, GR32_PolygonsEx,
+  Dialogs, StdCtrls, ExtCtrls, GR32, GR32_Layers, GR32_PolygonsEx,
   GR32_Polygons, GPC, Mask, XPMan, GR32_VectorUtils, GR32_Image;
 
 type
