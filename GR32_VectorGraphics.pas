@@ -239,7 +239,11 @@ end;
 
 procedure TPathRenderer.CurveTo(const P1, P2, P: TFloatPoint);
 begin
+{$IFDEF FPC}
+  BezierCurve(FCurrentPoint, P1, P2, P, @AddPoint);
+{$ELSE}
   BezierCurve(FCurrentPoint, P1, P2, P, AddPoint);
+{$ENDIF}
   FCurrentPoint := P;
 end;
 
