@@ -27,7 +27,7 @@ unit GR32_PolygonsEx;
 
 interface
 
-{$I GR32.INC}
+{$I GR32.inc}
 
 {.$DEFINE USEGR32GAMMA}
 {.$DEFINE CHANGENOTIFICATIONS}
@@ -107,6 +107,11 @@ uses
 
 type
   TBitmap32Access = class(TBitmap32);
+
+{$IFDEF COMPILER2006}
+var
+  bias_ptr: Pointer;
+{$ENDIF}
 
 // routines for color filling:
 
@@ -858,5 +863,10 @@ begin
     FFillProcUnpacked := FillProcsUnpacked[FillMode];
   end;
 end;
+
+{$IFDEF COMPILER2006}
+initialization
+  bias_ptr := GR32_Blend.bias_ptr;
+{$ENDIF}
 
 end.
