@@ -7,35 +7,33 @@ uses
   Dialogs, StdCtrls, GR32_Image, ComCtrls, ExtCtrls, XPMan, GR32_Layers;
 
 type
-  TForm2 = class(TForm)
-    FontDialog1: TFontDialog;
-    Panel1: TPanel;
-    Img: TImage32;
-    Panel2: TPanel;
-    Button2: TButton;
-    GroupBox1: TGroupBox;
-    Label1: TLabel;
-    Label2: TLabel;
-    tbGamma: TTrackBar;
+  TMainForm = class(TForm)
+    btnSelectFont: TButton;
     cbHinted: TCheckBox;
+    FontDialog: TFontDialog;
+    gbSettings: TGroupBox;
+    Img: TImage32;
+    lblGamma: TLabel;
+    lblGammaValue: TLabel;
     PB: TPaintBox32;
+    pnlControl: TPanel;
+    pnlImage: TPanel;
     rgMethod: TRadioGroup;
-    procedure Button2Click(Sender: TObject);
+    tbGamma: TTrackBar;
     procedure FormCreate(Sender: TObject);
-    procedure tbGammaChange(Sender: TObject);
+    procedure btnSelectFontClick(Sender: TObject);
     procedure cbHintedClick(Sender: TObject);
+    procedure ImgClick(Sender: TObject);
     procedure ImgMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer;
       Layer: TCustomLayer);
     procedure rgMethodClick(Sender: TObject);
-  private
-    { Private declarations }
+    procedure tbGammaChange(Sender: TObject);
   public
-    { Public declarations }
     procedure RenderText;
   end;
 
 var
-  Form2: TForm2;
+  MainForm: TMainForm;
 
 implementation
 
@@ -75,24 +73,24 @@ const
 var
   Poly: TArrayOfArrayOfFloatPoint;
 
-procedure TForm2.Button2Click(Sender: TObject);
+procedure TMainForm.btnSelectFontClick(Sender: TObject);
 begin
-  if FontDialog1.Execute then
+  if FontDialog.Execute then
   begin
-    Img.Bitmap.Font.Assign(FontDialog1.Font);
+    Img.Bitmap.Font.Assign(FontDialog.Font);
     Poly := TextToPolygonF(Img.Bitmap, 10, 10, TSTRING);    
     RenderText;
   end;
 end;
 
-procedure TForm2.FormCreate(Sender: TObject);
+procedure TMainForm.FormCreate(Sender: TObject);
 begin
   SetGamma(0.88);
   Img.SetupBitmap(True, clWhite32);
   Img.Bitmap.Font.Name := 'Georgia';
   Img.Bitmap.Font.Size := 8;
   Img.Bitmap.Font.Style := [fsItalic];
-  FontDialog1.Font.Assign(Img.Bitmap.Font);
+  FontDialog.Font.Assign(Img.Bitmap.Font);
   Poly := TextToPolygonF(Img.Bitmap, 10, 10, TSTRING);
   SetGamma(1);
   RenderText;
@@ -100,7 +98,15 @@ begin
   PB.Buffer.Clear(clWhite32);
 end;
 
-procedure TForm2.ImgMouseMove(Sender: TObject; Shift: TShiftState; X,
+procedure TMainForm.ImgClick(Sender: TObject);
+begin
+ if rgMethod.ItemIndex + 1 < rgMethod.Items.Count then
+   rgMethod.ItemIndex := rgMethod.ItemIndex + 1
+ else
+   rgMethod.ItemIndex := 0;
+end;
+
+procedure TMainForm.ImgMouseMove(Sender: TObject; Shift: TShiftState; X,
   Y: Integer; Layer: TCustomLayer);
 const
   Delta = 16;
@@ -109,7 +115,7 @@ begin
   PB.Repaint;
 end;
 
-procedure TForm2.RenderText;
+procedure TMainForm.RenderText;
 begin
   Img.SetupBitmap(True, clWhite32);
   case rgMethod.ItemIndex of
@@ -121,19 +127,19 @@ begin
     ImgMouseMove(nil, [], X, Y, nil);
 end;
 
-procedure TForm2.rgMethodClick(Sender: TObject);
+procedure TMainForm.rgMethodClick(Sender: TObject);
 begin
   RenderText;
 end;
 
-procedure TForm2.tbGammaChange(Sender: TObject);
+procedure TMainForm.tbGammaChange(Sender: TObject);
 begin
-  SetGamma(tbGamma.Position / 100);
-  Label2.Caption := Format('(%1.2f)', [tbGamma.Position / 100]);
+  SetGamma(tbGamma.Position * 0.01);
+  lblGammaValue.Caption := Format('(%1.2f)', [tbGamma.Position * 0.01]);
   RenderText;
 end;
 
-procedure TForm2.cbHintedClick(Sender: TObject);
+procedure TMainForm.cbHintedClick(Sender: TObject);
 const
   HVALUES: array [Boolean] of Integer = (GGO_NATIVE or GGO_UNHINTED, GGO_NATIVE);
 begin
@@ -141,7 +147,5 @@ begin
   Poly := TextToPolygonF(Img.Bitmap, 10, 10, TSTRING);  
   RenderText;
 end;
-
-
 
 end.
