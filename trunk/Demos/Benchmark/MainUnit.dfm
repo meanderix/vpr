@@ -25,7 +25,6 @@ object Form1: TForm1
     Align = alBottom
     BevelOuter = bvNone
     TabOrder = 0
-    ExplicitWidth = 807
     object Label1: TLabel
       Left = 152
       Top = 75
@@ -65,7 +64,7 @@ object Form1: TForm1
         'GDI+ (high speed)'
         'GDI+ (high quality)'
         'Cairo'
-        'GR32_Polygons (am32times)'
+        'Direct2D'
         'GR32_Polygons (am16times)'
         'GR32_Polygons (am8times)'
         'GR32_Polygons (am4times)'

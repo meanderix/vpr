@@ -42,6 +42,7 @@
 {$DEFINE AGGLITE}
 {$DEFINE LIBART}
 {$DEFINE CAIRO}
+{$DEFINE DIRECT2D}
 
 unit MainUnit;
 
@@ -66,6 +67,9 @@ uses
 {$ENDIF}
 {$IFDEF CAIRO},
   Cairo, CairoWin32
+{$ENDIF}
+{$IFDEF DIRECT2D},
+  Direct2D, D2D1
 {$ENDIF};
 type
   TForm1 = class(TForm)
@@ -114,6 +118,9 @@ type
 {$IFDEF CAIRO}
     surface: Pcairo_surface_t;
     cr: Pcairo_t;
+{$ENDIF}
+{$IFDEF DIRECT2D}
+    d2d: TDirect2DCanvas;
 {$ENDIF}
     function GetFixedPolygon: TArrayOfArrayOfFixedPoint;
     function GetIterations: Integer;
@@ -265,11 +272,15 @@ begin
   Dst := Img.Bitmap;
   Iter := GetIterations;
   GlobalPerfTimer.Start;
+
+  if rgRasterizer.ItemIndex = 8 then d2d.BeginDraw;
   for I := 0 to Iter - 1 do
   begin
     BuildPolygon;
     RenderPolygon(Dst);
   end;
+  if rgRasterizer.ItemIndex = 8 then d2d.EndDraw;
+
   StopTimer;
   Screen.Cursor := crDefault;
 end;
@@ -488,6 +499,42 @@ var
   end;
 {$ENDIF}
 
+{$IFDEF DIRECT2D}
+  procedure RenderDirect2D;
+  var
+    Geometry: ID2D1PathGeometry;
+    Sink: ID2D1GeometrySink;
+    HR: HRESULT;
+    I, J: Integer;
+  begin
+    d2d.Brush.Color := WinColor(Color);
+    d2d.Brush.Handle.SetOpacity((Color and $ff000000)/$ff000000);
+
+    D2DFactory.CreatePathGeometry(Geometry);
+    HR := Geometry.Open(Sink);
+    Sink.SetFillMode(D2D1_FILL_MODE_WINDING);
+
+    for I := 0 to High(Polygon) do
+    begin
+      with Polygon[I][0] do
+        Sink.BeginFigure(D2D1PointF(X, Y), D2D1_FIGURE_BEGIN_FILLED);
+      try
+        for J := 1 to High(Polygon[I]) do
+          with Polygon[I][J] do
+            Sink.AddLine(D2D1PointF(X, Y));
+      finally
+        Sink.EndFigure(D2D1_FIGURE_END_CLOSED);
+      end;
+    end;
+    hr := Sink.Close;
+
+    if cbStroke.Checked then
+      d2d.RenderTarget.DrawGeometry(Geometry, d2d.Brush.Handle)
+    else
+      d2d.RenderTarget.FillGeometry(Geometry, d2d.Brush.Handle);
+  end;
+{$ENDIF}
+
 begin
   Color := RandColor;
   if cbOpaque.Checked then Color := Color or $ff000000;
@@ -503,31 +550,44 @@ begin
       begin
         PolyPolygonFS_LCD(Dst, Polygon, Color, pfWinding);
       end;
-    2: {$IFDEF AGGPAS}RenderAggpas{$ENDIF};
-    3: {$IFDEF AGGLITE}RenderAGGLITE{$ENDIF};
-    4: {$IFDEF LIBART}RenderLibArt{$ENDIF};
+{$IFDEF AGGPAS}
+    2: RenderAggpas;
+{$ENDIF}
+{$IFDEF AGGLITE}
+    3: RenderAGGLITE;
+{$ENDIF}
+{$IFDEF LIBART}
+    4: RenderLibArt;
+{$ENDIF}
+{$IFDEF GDIPLUS}
     5:
       begin
-        {$IFDEF GDIPLUS}
         GPGraphics.SetSmoothingMode(SmoothingModeHighSpeed);
         RenderGdiPlus;
-        {$ENDIF}
       end;
+{$ENDIF}
+{$IFDEF GDIPLUS}
     6:
       begin
-        {$IFDEF GDIPLUS}
         GPGraphics.SetSmoothingMode(SmoothingModeHighQuality);
         RenderGdiPlus;
-        {$ENDIF}
       end;
-    7: {$IFDEF CAIRO}RenderCairo{$ENDIF};
-
+{$ENDIF}
+{$IFDEF CAIRO}
+    7: RenderCairo;
+{$ENDIF}
+{$IFDEF DIRECT2D}
+    8: RenderDirect2D;
+{$ENDIF}
+    9..13:
+      begin
+        Poly := GetFixedPolygon;
+        if cbStroke.Checked then
+          GR32_Polygons.PolyPolylineXS(Dst, Poly, Color, True)
+        else
+          GR32_Polygons.PolyPolygonXS(Dst, Poly, Color, GR32_Polygons.pfWinding, AAMode, nil);
+      end;
   else
-    Poly := GetFixedPolygon;
-    if cbStroke.Checked then
-      GR32_Polygons.PolyPolylineXS(Dst, Poly, Color, True)    
-    else
-      GR32_Polygons.PolyPolygonXS(Dst, Poly, Color, GR32_Polygons.pfWinding, AAMode, nil);
   end;
 end;
 
@@ -735,6 +795,9 @@ begin
   cairo_set_line_width(cr, 1.0);
   //cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
 {$ENDIF}
+{$IFDEF DIRECT2D}
+  d2d := TDirect2DCanvas.Create(Img.Bitmap.Handle, Img.Bitmap.BoundsRect);
+{$ENDIF}
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
@@ -755,6 +818,9 @@ begin
 {$IFDEF CAIRO}
   cairo_destroy(cr);
   cairo_surface_destroy(surface);
+{$ENDIF}
+{$IFDEF DIRECT2D}
+  d2d.Free;
 {$ENDIF}
 end;
 
