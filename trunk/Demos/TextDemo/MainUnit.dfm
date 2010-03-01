@@ -1,4 +1,4 @@
-object Form2: TForm2
+object MainForm: TMainForm
   Left = 914
   Top = 71
   Caption = 'GR32_VPR Text Rendering'
@@ -15,7 +15,7 @@ object Form2: TForm2
   OnCreate = FormCreate
   PixelsPerInch = 96
   TextHeight = 13
-  object Panel1: TPanel
+  object pnlImage: TPanel
     Left = 169
     Top = 0
     Width = 428
@@ -24,7 +24,6 @@ object Form2: TForm2
     BevelOuter = bvLowered
     BevelWidth = 2
     TabOrder = 0
-    ExplicitHeight = 487
     object Img: TImage32
       Left = 2
       Top = 2
@@ -38,11 +37,11 @@ object Form2: TForm2
       Scale = 1.000000000000000000
       ScaleMode = smNormal
       TabOrder = 0
+      OnClick = ImgClick
       OnMouseMove = ImgMouseMove
-      ExplicitHeight = 483
     end
   end
-  object Panel2: TPanel
+  object pnlControl: TPanel
     Left = 0
     Top = 0
     Width = 169
@@ -50,24 +49,23 @@ object Form2: TForm2
     Align = alLeft
     BevelOuter = bvNone
     TabOrder = 1
-    ExplicitHeight = 713
-    object Button2: TButton
+    object btnSelectFont: TButton
       Left = 8
       Top = 8
       Width = 155
       Height = 25
       Caption = 'Select Font...'
       TabOrder = 0
-      OnClick = Button2Click
+      OnClick = btnSelectFontClick
     end
-    object GroupBox1: TGroupBox
+    object gbSettings: TGroupBox
       Left = 10
       Top = 39
       Width = 153
       Height = 178
       Caption = 'Settings'
       TabOrder = 1
-      object Label1: TLabel
+      object lblGamma: TLabel
         Left = 9
         Top = 41
         Width = 36
@@ -80,7 +78,7 @@ object Form2: TForm2
         Font.Style = []
         ParentFont = False
       end
-      object Label2: TLabel
+      object lblGammaValue: TLabel
         Left = 118
         Top = 41
         Width = 24
@@ -150,7 +148,7 @@ object Form2: TForm2
       OnClick = rgMethodClick
     end
   end
-  object FontDialog1: TFontDialog
+  object FontDialog: TFontDialog
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -11

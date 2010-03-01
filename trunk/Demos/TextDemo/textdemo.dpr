@@ -4,12 +4,12 @@ uses
   FastMM4,
   FastMove,
   Forms,
-  MainUnit in 'MainUnit.pas' {Form2};
+  MainUnit in 'MainUnit.pas' {MainForm};
 
 {$R *.res}
 
 begin
   Application.Initialize;
-  Application.CreateForm(TForm2, Form2);
+  Application.CreateForm(TMainForm, MainForm);
   Application.Run;
 end.
