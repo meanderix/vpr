@@ -20,6 +20,7 @@
 			<Base>true</Base>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Base)'!=''">
+			<DCC_Define>USEGR32GAMMA;$(DCC_Define)</DCC_Define>
 			<DCC_DependencyCheckOutputName>textdemo.exe</DCC_DependencyCheckOutputName>
 			<DCC_DcuOutput>DCU</DCC_DcuOutput>
 			<DCC_UsePackage>vclx;vcl;dbrtl;Rave76VCL;bdertl;rtl;vclactnband;vcldb;vcldbx;dsnap;dsnapcon;TeeUI;TeeDB;Tee;adortl;vclib;ibxpress;IndyCore;IndySystem;IndyProtocols;xmlrtl;inet;intrawebdb_100_120;Intraweb_100_120;VclSmp;vclie;websnap;webdsnap;inetdbbde;inetdbxpress;soaprtl;vclribbon;DbxCommonDriver;DbxClientDriver;DBXInterBaseDriver;DBXMySQLDriver;dbexpress;dbxcds;PS_VCL_D7;GR32_BDS2009;RaizeComponentsVcl;RaizeComponentsVclDb;DControls;GR32_DSGN_BDS2009;dclOfficeXP;PS_IDE_D7;DGradients2005;dxCoreD12;cxLibraryD12;dxsbD12;dxComnD12;cxEditorsD12;cxExtEditorsD12;cxPageControlD12;cxBarEditItemD12;dxBarD12;dxBarDBNavD12;dxBarExtDBItemsD12;dxBarExtItemsD12;dxRibbonD12;cxGridD12;cxSchedulerD12;cxSchedulerGridD12;cxTreeListD12;cxTreeListdxBarPopupMenuD12;cxVerticalGridD12;dxmdsD12;dxSpellCheckerD12;cxSpreadSheetD12;dxDockingD12;dxNavBarD12;dxLayoutControlD12;dxLayoutControlcxEditAdaptersD12;cxPivotGridD12;cxPivotGridChartD12;cxPivotGridOLAPD12;dxdbtrD12;dxtrmdD12;dxorgcD12;dxdborD12;dxFlowChartD12;dcldxSkinsCoreD12;dxSkinsCoreD12;dxSkinscxScheduler3PainterD12;dxSkinscxPCPainterD12;dxSkinsdxBarPainterD12;dxSkinsdxLCPainterD12;dxSkinsdxNavBar2PainterD12;dxSkinBlackD12;dxSkinBlueD12;dxSkinCaramelD12;dxSkinCoffeeD12;dxSkinDarkSideD12;dxSkinGlassOceansD12;dxSkiniMaginaryD12;dxSkinLilianD12;dxSkinLiquidSkyD12;dxSkinLondonLiquidSkyD12;dxSkinMcSkinD12;dxSkinMoneyTwinsD12;dxSkinOffice2007BlackD12;dxSkinOffice2007BlueD12;dxSkinOffice2007GreenD12;dxSkinOffice2007PinkD12;dxSkinOffice2007SilverD12;dxSkinPumpkinD12;dxSkinsdxDLPainterD12;dxSkinsdxRibbonPainterD12;dxSkinSilverD12;dxSkinSpringTimeD12;dxSkinStardustD12;dxSkinSummer2008D12;dxSkinValentineD12;dxSkinXmas2008BlueD12;dxPSCoreD12;dxPSLnksD12;vclshlctrls;dxPScxCommonD12;dxPScxGrid6LnkD12;dxPScxPCProdD12;dxPScxPivotGrid2LnkD12;dxPScxScheduler3LnkD12;dxPScxSSLnkD12;dxPScxVGridLnkD12;dxPSTeeChartD12;dxPSdxOCLnkD12;dxPSdxDBTVLnkD12;dxPSdxFCLnkD12;dxPSdxLCLnkD12;dxPSdxDBOCLnkD12;dxPScxExtCommonD12;dxPsPrVwAdvD12;dxPSDBTeeChartD12</DCC_UsePackage>
@@ -41,7 +42,7 @@
 				<MainSource>MainSource</MainSource>
 			</DelphiCompile>
 			<DCCReference Include="MainUnit.pas">
-				<Form>Form2</Form>
+				<Form>MainForm</Form>
 			</DCCReference>
 			<BuildConfiguration Include="Base">
 				<Key>Base</Key>
@@ -75,7 +76,7 @@
 						<VersionInfo Name="MajorVer">1</VersionInfo>
 						<VersionInfo Name="MinorVer">1</VersionInfo>
 						<VersionInfo Name="Release">2</VersionInfo>
-						<VersionInfo Name="Build">222</VersionInfo>
+						<VersionInfo Name="Build">223</VersionInfo>
 						<VersionInfo Name="Debug">False</VersionInfo>
 						<VersionInfo Name="PreRelease">False</VersionInfo>
 						<VersionInfo Name="Special">False</VersionInfo>
@@ -87,7 +88,7 @@
 					<VersionInfoKeys>
 						<VersionInfoKeys Name="CompanyName"/>
 						<VersionInfoKeys Name="FileDescription"/>
-						<VersionInfoKeys Name="FileVersion">1.1.2.222</VersionInfoKeys>
+						<VersionInfoKeys Name="FileVersion">1.1.2.223</VersionInfoKeys>
 						<VersionInfoKeys Name="InternalName"/>
 						<VersionInfoKeys Name="LegalCopyright"/>
 						<VersionInfoKeys Name="LegalTrademarks"/>
