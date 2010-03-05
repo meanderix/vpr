@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, GR32_Image, GR32_RangeBars, StdCtrls;
+  GR32_Image;
 
 type
   TMainForm = class(TForm)
@@ -20,15 +20,7 @@ implementation
 {$R *.dfm}
 
 uses
-  GR32, GR32_VectorGraphics, GR32_PolygonsEx, GR32_VectorUtils;
-
-procedure SinCos(const Argument: TFloat; var Sin, Cos: TFloat);
-asm
-  fld     Argument
-  fsincos
-  fstp    edx.TFloat   // Cos
-  fstp    eax.TFloat   // Sin
-end;
+  GR32, GR32_Math, GR32_VectorGraphics, GR32_PolygonsEx, GR32_VectorUtils;
 
 function Ellipse(const X, Y, Rx, Ry: TFloat): TArrayOfFloatPoint;
 const
@@ -66,17 +58,20 @@ begin
 end;
 
 procedure DrawSimplePolygon(Renderer: TPathRenderer; Cx, Cy, Rx, Ry: TFloat);
+// Draw spiral shape
+const
+  ONE8TH : TFloat = 1 / 12;
+  ONE200TH : TFloat = 1 / 400;
 var
   I: Integer;
-const
-  ONE8TH : TFloat = 1 / 8;
-  ONE200TH : TFloat = 1 / 200;
+  S, C, Scale: TFloat;
 begin
   Renderer.MoveTo(Cx, Cy);
-  for I := 0 to 240 do
+  for I := 0 to 480 do
   begin
-    Renderer.LineTo(Cx + Rx * I * ONE200TH * Cos(I * ONE8TH),
-      Cy + Ry * I * ONE200TH * Sin(I * ONE8TH));
+    SinCos(I * ONE8TH, S, C);
+    Scale := I * ONE200TH;
+    Renderer.LineTo(Cx + Rx * Scale * C, Cy + Ry * Scale * S);
   end;
 end;
 
@@ -118,7 +113,7 @@ begin
 
     Renderer.BeginPath;
     Renderer.StrokeColor := $ff6699cc;
-    Renderer.StrokeWidth := 6;
+    Renderer.StrokeWidth := 5;
     DrawSimplePolygon(Renderer, 240, 240, 100, 100);
     Renderer.EndPath;
   finally
@@ -131,22 +126,6 @@ procedure TMainForm.FormCreate(Sender: TObject);
 begin
   Img.SetupBitmap(True, clWhite32);
   PaintBitmap(Img.Bitmap);
-end;
-
-function MakeArrayOfFloatPoints(const a: array of Single): TArrayOfFloatPoint;
-var
-   i, Len: Integer;
-begin
-  Len := Length(a) div 2;
-  SetLength(Result, Len);
-  if len = 0 then
-    Exit;
-
-  for i := 0 to Len -1 do
-  begin
-    Result[i].X := a[i * 2];
-    Result[i].Y := a[i * 2 + 1];
-  end;
 end;
 
 end.
