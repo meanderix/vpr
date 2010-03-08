@@ -22,41 +22,6 @@ implementation
 uses
   GR32, GR32_Math, GR32_VectorGraphics, GR32_PolygonsEx, GR32_VectorUtils;
 
-function Ellipse(const X, Y, Rx, Ry: TFloat): TArrayOfFloatPoint;
-const
-  M : TFloat = Pi / 180;
-var
-  I: Integer;
-  t: TFloat;
-  Data : array [0..3] of TFloat;
-begin
-  SetLength(Result, 360);
-
-  // first item
-  Result[0].X := Rx + X;
-  Result[0].Y := Y;
-
-  // calculate complex offset
-  SinCos(M, Data[0], Data[1]);
-  Data[2] := Data[0];
-  Data[3] := Data[1];
-
-  // second item
-  Result[1].X := Rx * Data[3] + X;
-  Result[1].Y := Ry * Data[2] + Y;
-
-  // other items
-  for I := 2 to 359 do
-  begin
-    t := Data[3];
-    Data[3] := Data[3] * Data[1] - Data[2] * Data[0];
-    Data[2] := Data[2] * Data[1] + t * Data[0];
-
-    Result[I].X := Rx * Data[3] + X;
-    Result[I].Y := Ry * Data[2] + Y;
-  end;
-end;
-
 procedure DrawSimplePolygon(Renderer: TPathRenderer; Cx, Cy, Rx, Ry: TFloat);
 // Draw spiral shape
 const

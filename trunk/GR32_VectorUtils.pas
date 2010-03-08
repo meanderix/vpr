@@ -78,6 +78,7 @@ function CatPolygon(const P1, P2: TArrayOfArrayOfFloatPoint): TArrayOfArrayOfFlo
 
 function BuildArc(const P: TFloatPoint; a1, a2, r: TFloat; Steps: Integer): TArrayOfFloatPoint; overload;
 function BuildArc(const P: TFloatPoint; a1, a2, r: TFloat): TArrayOfFloatPoint; overload;
+function Ellipse(const X, Y, Rx, Ry: TFloat; Steps: Integer = 100): TArrayOfFloatPoint;
 
 function PolygonBounds(const Points: TArrayOfFloatPoint): TFloatRect;
 
@@ -364,6 +365,37 @@ var
 begin
   Steps := Max(MINSTEPS, System.Round(Sqrt(Abs(r)) * Abs(a2 - a1)));
   Result := BuildArc(P, a1, a2, r, Steps);
+end;
+
+function Ellipse(const X, Y, Rx, Ry: TFloat; Steps: Integer): TArrayOfFloatPoint;
+var
+  I: Integer;
+  M: TFloat;
+  C, D: TFloatPoint;
+begin
+  SetLength(Result, Steps);
+  M := 2 * System.Pi / Steps;
+
+  // first item
+  Result[0].X := Rx + X;
+  Result[0].Y := Y;
+
+  // calculate complex offset
+  SinCos(M, C.Y, C.X);
+  D := C;
+
+  // second item
+  Result[1].X := Rx * D.X + X;
+  Result[1].Y := Ry * D.Y + Y;
+
+  // other items
+  for I := 2 to Steps - 1 do
+  begin
+    D := FloatPoint(D.X * C.X - D.Y * C.Y, D.Y * C.X + D.X * C.Y);
+
+    Result[I].X := Rx * D.X + X;
+    Result[I].Y := Ry * D.Y + Y;
+  end;
 end;
 
 function BuildNormals(const Points: TArrayOfFloatPoint): TArrayOfFloatPoint;
