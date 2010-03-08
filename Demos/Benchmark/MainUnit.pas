@@ -185,46 +185,6 @@ const
     (Name: 'Garamond'; Size: 12; Style: [])
   );
 
-procedure SinCos(const Argument: TFloat; var Sin, Cos: TFloat);
-asm
-  fld     Argument
-  fsincos
-  fstp    edx.TFloat   // Cos
-  fstp    eax.TFloat   // Sin
-end;
-
-function Ellipse(const X, Y, Rx, Ry: TFloat): TArrayOfFloatPoint;
-const
-  M: TFloat = 2 * System.Pi / 100;
-var
-  I: Integer;
-  C, D: TFloatPoint;
-begin
-  SetLength(Result, 100);
-
-  // first item
-  Result[0].X := Rx + X;
-  Result[0].Y := Y;
-
-  // calculate complex offset
-  SinCos(M, C.Y, C.X);
-  D := C;
-
-  // second item
-  Result[1].X := Rx * D.X + X;
-  Result[1].Y := Ry * D.Y + Y;
-
-  // other items
-  for I := 2 to 99 do
-  begin
-    D := FloatPoint(D.X * C.X - D.Y * C.Y, D.Y * C.X + D.X * C.Y);
-
-    Result[I].X := Rx * D.X + X;
-    Result[I].Y := Ry * D.Y + Y;
-  end;
-end;
-
-
 function CreateLine(x1, y1, x2, y2, width: TFloat): TArrayOfFloatPoint;
 var
   dx, dy, d: TFloat;
