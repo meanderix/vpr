@@ -1,6 +1,6 @@
 object MainForm: TMainForm
-  Left = 914
-  Top = 71
+  Left = 484
+  Top = 101
   Caption = 'GR32_VPR Text Rendering'
   ClientHeight = 569
   ClientWidth = 597
