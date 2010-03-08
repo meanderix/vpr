@@ -43,6 +43,7 @@
 {$DEFINE LIBART}
 {$DEFINE CAIRO}
 {$DEFINE DIRECT2D}
+{.$DEFINE OPENGL}
 
 unit MainUnit;
 
@@ -70,6 +71,9 @@ uses
 {$ENDIF}
 {$IFDEF DIRECT2D},
   Direct2D, D2D1
+{$ENDIF}
+{$IFDEF OPENGL},
+  OpenGL
 {$ENDIF};
 
 type
@@ -119,6 +123,9 @@ type
 {$IFDEF DIRECT2D}
     d2d: TDirect2DCanvas;
 {$ENDIF}
+{$IFDEF OPENGL}
+    glctx: HGLRC;
+{$ENDIF}
     function GetFixedPolygon: TArrayOfArrayOfFixedPoint;
     function GetIterations: Integer;
     procedure BuildPolygon;
@@ -159,7 +166,7 @@ const
     'ullamco laboris nisi ut aliquip ex ea commodo consequat.',
     'The quick brown fox jumps over the lazy dog.',
     'Jackdaws love my big sphinx of quartz.');
-  ONE255TH : Double = 1 / 255;  
+  ONE255TH : Double = 1 / 255;
 
 type
   TFontEntry = record
@@ -188,11 +195,10 @@ end;
 
 function Ellipse(const X, Y, Rx, Ry: TFloat): TArrayOfFloatPoint;
 const
-  M : TFloat = 2 * System.Pi / 100;
+  M: TFloat = 2 * System.Pi / 100;
 var
   I: Integer;
-  t: TFloat;
-  Data : array [0..3] of TFloat;
+  C, D: TFloatPoint;
 begin
   SetLength(Result, 100);
 
@@ -201,25 +207,23 @@ begin
   Result[0].Y := Y;
 
   // calculate complex offset
-  SinCos(M, Data[0], Data[1]);
-  Data[2] := Data[0];
-  Data[3] := Data[1];
+  SinCos(M, C.Y, C.X);
+  D := C;
 
   // second item
-  Result[1].X := Rx * Data[3] + X;
-  Result[1].Y := Ry * Data[2] + Y;
+  Result[1].X := Rx * D.X + X;
+  Result[1].Y := Ry * D.Y + Y;
 
   // other items
   for I := 2 to 99 do
   begin
-    t := Data[3];
-    Data[3] := Data[3] * Data[1] - Data[2] * Data[0];
-    Data[2] := Data[2] * Data[1] + t * Data[0];
+    D := FloatPoint(D.X * C.X - D.Y * C.Y, D.Y * C.X + D.X * C.Y);
 
-    Result[I].X := Rx * Data[3] + X;
-    Result[I].Y := Ry * Data[2] + Y;
+    Result[I].X := Rx * D.X + X;
+    Result[I].Y := Ry * D.Y + Y;
   end;
 end;
+
 
 function CreateLine(x1, y1, x2, y2, width: TFloat): TArrayOfFloatPoint;
 var
@@ -308,6 +312,9 @@ begin
   Result := Random($FFFFFFFF) and $FF777777 + $333333;
 end;
 
+{$IFDEF OPENGL}
+function InitOpenGL(DC: HDC; AWidth, AHeight: Integer): HGLRC; forward;
+{$ENDIF}
 
 { TMainForm }
 
@@ -368,6 +375,9 @@ begin
 {$IFDEF DIRECT2D}
   d2d := TDirect2DCanvas.Create(Img.Bitmap.Handle, Img.Bitmap.BoundsRect);
 {$ENDIF}
+{$IFDEF OPENGL}
+  glctx := InitOpenGL(Img.Bitmap.Handle, XSIZE, YSIZE);
+{$ENDIF}
 end;
 
 procedure TMainForm.FormDestroy(Sender: TObject);
@@ -391,6 +401,9 @@ begin
 {$ENDIF}
 {$IFDEF DIRECT2D}
   d2d.Free;
+{$ENDIF}
+{$IFDEF OPENGL}
+  wglDeleteContext(glctx);
 {$ENDIF}
 end;
 
@@ -429,6 +442,7 @@ begin
   if rgRasterizer.ItemIndex = 8 then
     d2d.BeginDraw;
   {$ENDIF}
+
   for I := 0 to Iter - 1 do
   begin
     BuildPolygon;
@@ -437,6 +451,12 @@ begin
   {$IFDEF DIRECT2D}
   if rgRasterizer.ItemIndex = 8 then
     d2d.EndDraw;
+  {$ENDIF}
+  {$IFDEF OPENGL}
+  if rgRasterizer.ItemIndex = 9 then
+  begin
+    glFinish;
+  end;
   {$ENDIF}
 
   StopTimer;
@@ -454,6 +474,64 @@ begin
     4: Polygon := RandomText;
   end;
 end;
+
+{$IFDEF OPENGL}
+const
+  GL_TEXTURE_3D = $806F;
+  GL_TEXTURE_CUBE_MAP_ARB = $8513;
+
+function InitOpenGL(DC: HDC; AWidth, AHeight: Integer): HGLRC;
+var
+  pfd: TPIXELFORMATDESCRIPTOR;
+  pixelFormat: Integer;
+begin
+  FillChar(pfd, SizeOf(pfd), 0);
+  with pfd do
+  begin
+    nSize := SizeOf(TPIXELFORMATDESCRIPTOR);
+    nVersion := 1;
+    dwFlags := PFD_SUPPORT_OPENGL or PFD_DRAW_TO_BITMAP;
+    iPixelType := PFD_TYPE_RGBA;
+    cColorBits := 32;
+    cDepthBits := 0; //16;
+    iLayerType := PFD_MAIN_PLANE;
+  end;
+
+  pixelFormat := ChoosePixelFormat(DC, @pfd);
+  SetPixelFormat(DC, pixelFormat, @pfd);
+  Result := wglCreateContext(DC);
+  wglMakeCurrent(DC, Result);
+  GdiFlush();
+
+  glPushAttrib(GL_ENABLE_BIT);
+  glDisable(GL_CULL_FACE);
+  glDisable(GL_LIGHTING);
+  glDisable(GL_FOG);
+  glDisable(GL_COLOR_MATERIAL);
+  glDisable(GL_DEPTH_TEST);
+  glDisable(GL_TEXTURE_1D);
+  glDisable(GL_TEXTURE_2D);
+  glDisable(GL_TEXTURE_3D);
+  glDisable(GL_TEXTURE_CUBE_MAP_ARB);
+
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+  glEnable(GL_SMOOTH);
+  glEnable(GL_LINE_SMOOTH);
+  glEnable(GL_POINT_SMOOTH);
+  glEnable(GL_POLYGON_SMOOTH);
+  glHint(GL_POINT_SMOOTH_HINT, GL_NICEST);
+  glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+  glHint(GL_POLYGON_SMOOTH_HINT, GL_NICEST);
+
+  glViewPort(0, 0, AWidth, AHeight);
+  glMatrixMode(GL_PROJECTION);
+  gluOrtho2D(0, AWidth, 0, AHeight);
+  glMatrixMode(GL_MODELVIEW);
+  glLoadIdentity();
+end;
+{$ENDIF}
 
 {$IFDEF LIBART}
 // N1: this is a bit different from LibArt's own callbacks, but it seems to work OK.
@@ -662,7 +740,7 @@ var
     I, J: Integer;
   begin
     d2d.Brush.Color := WinColor(Color);
-    d2d.Brush.Handle.SetOpacity((Color and $ff000000)/$ff000000);
+    d2d.Brush.Handle.SetOpacity((Color shr 24)/$ff);
 
     D2DFactory.CreatePathGeometry(Geometry);
     HR := Geometry.Open(Sink);
@@ -689,9 +767,37 @@ var
   end;
 {$ENDIF}
 
+{$IFDEF OPENGL}
+  procedure RenderOpenGL;
+  var
+    I, J: Integer;
+    ListID: GLuint;
+  begin
+    ListID := glGenLists(1);
+    glNewList(ListID, GL_COMPILE);
+
+    with TColor32Entry(Color) do
+      //glColor4i(R, G, B, A);
+      glColor4f(R/255, G/255, B/255, A/255);
+
+    for I := 0 to High(Polygon) do
+    begin
+      glBegin(GL_POLYGON);
+      for J := 0 to High(Polygon[I]) do
+        glVertex2f(Polygon[I][J].X, Polygon[I][J].Y);
+      glEnd;
+    end;
+    glEndList;
+    glCallList(ListID);
+    glFinish;
+  end;
+{$ENDIF}
+
 begin
   Color := RandColor;
-  if cbOpaque.Checked then Color := Color or $ff000000;
+  if cbOpaque.Checked then
+    //Color := Color or $ff000000;
+    Color := (Color and $00ffffff) or $03000000;
   case rgRasterizer.ItemIndex of
     0:
       begin
@@ -733,7 +839,10 @@ begin
 {$IFDEF DIRECT2D}
     8: RenderDirect2D;
 {$ENDIF}
-    9..13:
+{$IFDEF OPENGL}
+    9: RenderOpenGL;
+{$ENDIF}
+    10..13:
       begin
         Poly := GetFixedPolygon;
         if cbStroke.Checked then

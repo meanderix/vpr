@@ -40,7 +40,7 @@ implementation
 {$R *.dfm}
 
 uses
-  GR32, GR32_Polygons, { GR32_SVG,  }GR32_PathsEx, GR32_PolygonsEx;
+  GR32, GR32_Polygons, GR32_PathsEx, GR32_PolygonsEx;
 
 const
   CRNL = #13#10;
