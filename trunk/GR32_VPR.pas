@@ -162,7 +162,7 @@ asm
         CMP     ECX,32      // if count < 32, avoid SSE2 overhead
         JL      @SMALL
 
-//////////// ALIGN////////////////
+{----------------------------------- align ------------------------------------}
         PUSH    EBX
         PXOR    XMM4,XMM4
         MOV     EBX,EAX
@@ -195,7 +195,7 @@ asm
 
 @ENDALIGNING:
         POP     EBX
-//////////////////////////////////
+{------------------------------------------------------------------------------}
 
         PUSH    EBX
         MOV     ECX,EDX
@@ -203,7 +203,6 @@ asm
 
 @LOOP:
         MOVAPS  XMM0,[EAX]
-// check if zero (4 values)
         PXOR    XMM5,XMM5
         PCMPEQD XMM5,XMM0
         PMOVMSKB EBX,XMM5
@@ -213,6 +212,7 @@ asm
         JMP     @SKIP
 
 @NORMAL:
+(*
         ADDPS   XMM0,XMM4
         PSHUFD  XMM1,XMM0,$E4
         PSHUFD  XMM2,XMM0,$E4
@@ -223,10 +223,22 @@ asm
         ADDPS   XMM2,XMM3
         ADDPS   XMM1,XMM2
         ADDPS   XMM0,XMM1
+*)
+
+        ADDPS   XMM0,XMM4
+        PSHUFD  XMM1,XMM0,$e4
+        PSLLDQ  XMM1,4
+        PSHUFD  XMM2,XMM1,$90
+        PSHUFD  XMM3,XMM1,$40
+        ADDPS   XMM2,XMM3
+        ADDPS   XMM1,XMM2
+        ADDPS   XMM0,XMM1
+
         PSHUFLW XMM4,XMM0,$E4
         PSRLDQ  XMM4,12
 
 @SKIP:
+        PREFETCHNTA [eax+16*16*2]
         MOVAPS  [EAX],XMM0
         ADD     EAX,16
         SUB     ECX,1
