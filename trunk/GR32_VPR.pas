@@ -153,7 +153,8 @@ begin
   end;
 end;
 
-// SSE2 version -- Credits: Sanyin <prevodilac@hotmail.com>
+
+// Aligned SSE2 version -- Credits: Sanyin <prevodilac@hotmail.com>
 procedure SSE2_CumSum(Values: PSingleArray; Count: Integer);
 asm
         MOV     ECX,EDX
@@ -162,7 +163,7 @@ asm
         CMP     ECX,32      // if count < 32, avoid SSE2 overhead
         JL      @SMALL
 
-{----------------------------------- align ------------------------------------}
+{--- align memory ---}
         PUSH    EBX
         PXOR    XMM4,XMM4
         MOV     EBX,EAX
@@ -195,12 +196,9 @@ asm
 
 @ENDALIGNING:
         POP     EBX
-{------------------------------------------------------------------------------}
-
         PUSH    EBX
         MOV     ECX,EDX
         SAR     ECX,2
-
 @LOOP:
         MOVAPS  XMM0,[EAX]
         PXOR    XMM5,XMM5
@@ -212,19 +210,6 @@ asm
         JMP     @SKIP
 
 @NORMAL:
-(*
-        ADDPS   XMM0,XMM4
-        PSHUFD  XMM1,XMM0,$E4
-        PSHUFD  XMM2,XMM0,$E4
-        PSHUFD  XMM3,XMM0,$E4
-        PSLLDQ  XMM1,4
-        PSLLDQ  XMM2,8
-        PSLLDQ  XMM3,12
-        ADDPS   XMM2,XMM3
-        ADDPS   XMM1,XMM2
-        ADDPS   XMM0,XMM1
-*)
-
         ADDPS   XMM0,XMM4
         PSHUFD  XMM1,XMM0,$e4
         PSLLDQ  XMM1,4
@@ -244,7 +229,6 @@ asm
         SUB     ECX,1
         JNZ     @LOOP
         POP     EBX
-
         MOV     ECX,EDX
         SAR     ECX,2
         SHL     ECX,2
@@ -259,22 +243,13 @@ asm
         ADD     EAX,4
         DEC     ECX
         JNZ     @LOOP2
-        RET
+        JMP     @END
 
 @SMALL:
         MOV     ECX,EDX
         ADD     EAX,4
         DEC     ECX
 @LOOP3:
-        CMP     DWORD PTR [EAX],0
-        JNE     @NONZERO
-        MOV     EDX,DWORD PTR [EAX-4]
-        MOV     DWORD PTR [EAX],EDX
-        ADD     EAX,4
-        DEC     ECX
-        JNZ     @LOOP3
-        RET
-@NONZERO:
         FLD     DWORD PTR [EAX-4]
         FADD    DWORD PTR [EAX]
         FSTP    DWORD PTR [EAX]
@@ -643,8 +618,7 @@ var
   SpanData: PSingleArray;
 begin
   if Length(Points) = 0 then Exit;
-  SavedRoundMode := GetRoundMode;
-  SetRoundMode(rmDown);
+  SavedRoundMode := SetRoundMode(rmDown);
   try
     Poly := ClosePolygon(ClipPolygon(Points[0], ClipRect));
     BuildScanLines(Poly, ScanLines);
@@ -659,7 +633,7 @@ begin
     CX1 := Round(ClipRect.Left);
     CX2 := -Round(-ClipRect.Right) - 1;
 
-    I := CX2 - CX1 + 3;
+    I := CX2 - CX1 + 4;
     GetMem(SpanData, I * SizeOf(Single));
     FillLongWord(SpanData^, I, 0);
 
