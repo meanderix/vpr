@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, GR32_Image, ComCtrls, ExtCtrls, XPMan, GR32_Layers;
+  Dialogs, StdCtrls, ComCtrls, ExtCtrls, XPMan, GR32, GR32_Image, GR32_Layers;
 
 type
   TMainForm = class(TForm)
@@ -28,7 +28,10 @@ type
       Layer: TCustomLayer);
     procedure rgMethodClick(Sender: TObject);
     procedure tbGammaChange(Sender: TObject);
+  private
+    FPoly: TArrayOfArrayOfFloatPoint;
   public
+    procedure BuildPolygonFromText;
     procedure RenderText;
   end;
 
@@ -40,7 +43,7 @@ implementation
 {$R *.dfm}
 
 uses
-  GR32, GR32_Polygons, GR32_PathsEx, GR32_PolygonsEx;
+  GR32_Polygons, GR32_PathsEx, GR32_PolygonsEx;
 
 const
   CRNL = #13#10;
@@ -70,15 +73,12 @@ const
   'sed orci. Sed massa nisl, porta a, blandit vel, ultrices quis, neque. Curabitur' + CRNL +
   'consequat urna id pede. Suspendisse sed metus.';
 
-var
-  Poly: TArrayOfArrayOfFloatPoint;
-
 procedure TMainForm.btnSelectFontClick(Sender: TObject);
 begin
   if FontDialog.Execute then
   begin
     Img.Bitmap.Font.Assign(FontDialog.Font);
-    Poly := TextToPolygonF(Img.Bitmap, 10, 10, TSTRING);    
+    BuildPolygonFromText;
     RenderText;
   end;
 end;
@@ -91,7 +91,7 @@ begin
   Img.Bitmap.Font.Size := 8;
   Img.Bitmap.Font.Style := [fsItalic];
   FontDialog.Font.Assign(Img.Bitmap.Font);
-  Poly := TextToPolygonF(Img.Bitmap, 10, 10, TSTRING);
+  BuildPolygonFromText;
   SetGamma(1);
   RenderText;
   PB.Buffer.SetSizeFrom(PB);
@@ -115,13 +115,18 @@ begin
   PB.Repaint;
 end;
 
+procedure TMainForm.BuildPolygonFromText;
+begin
+ FPoly := TextToPolygonF(Img.Bitmap, 10, 10, TSTRING);
+end;
+
 procedure TMainForm.RenderText;
 begin
   Img.SetupBitmap(True, clWhite32);
   case rgMethod.ItemIndex of
-    0: PolyPolygonFS(Img.Bitmap, Poly, clBlack32, pfWinding);
-    1: PolyPolygonFS_LCD(Img.Bitmap, Poly, clBlack32, pfWinding);
-    2: PolyPolygonFS_LCD2(Img.Bitmap, Poly, clBlack32, pfWinding);
+    0: PolyPolygonFS(Img.Bitmap, FPoly, clBlack32, pfWinding);
+    1: PolyPolygonFS_LCD(Img.Bitmap, FPoly, clBlack32, pfWinding);
+    2: PolyPolygonFS_LCD2(Img.Bitmap, FPoly, clBlack32, pfWinding);
   end;
   with Img.ScreenToClient(Mouse.CursorPos) do
     ImgMouseMove(nil, [], X, Y, nil);
@@ -144,7 +149,7 @@ const
   HVALUES: array [Boolean] of Integer = (GGO_NATIVE or GGO_UNHINTED, GGO_NATIVE);
 begin
   GGODefaultFlags := HVALUES[cbHinted.Checked];
-  Poly := TextToPolygonF(Img.Bitmap, 10, 10, TSTRING);  
+  BuildPolygonFromText;
   RenderText;
 end;
 
