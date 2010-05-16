@@ -27,7 +27,7 @@ package VPR_D2006;
 requires
   rtl,
   vcl,
-  GR32_BDS2006;
+  GR32_RS2006;
 
 contains
   GR32_PolygonsEx in 'GR32_PolygonsEx.pas',
