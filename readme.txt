@@ -22,6 +22,7 @@ Advantages:
 Acknowledgements:
  - Thanks to Angus Johnson and Anders Melander for helping me track down bugs.
  - Thanks to Sanyin for providing SSE2 optimized CumSum implementation.
+ - Thanks to Michael Hinrichs for reporting about a buffer overflow bug.
  
 Change log:
  Version 1.00 (28 January 2009):
@@ -97,6 +98,11 @@ Version 1.23 (28 February 2010):
   - Added SSE2 optimized CumSum routine by Sanyin <prevodilac@hotmail.com>;
   - Fix: BuildDashedLine could return faulty line segments;
   - Minor tweaks and optimizations.
+Version 1.24 (30 April 2010):
+  - Maintenance update -- fixes a potential buffer overflow problem;
+  - Improved CumSum implementation by Sanyin.
+Version 1.25 (6 November 2010):
+  - Maintenance update -- renaming/fixing broken packages.
 
 Included files:
   GR32_VPR.pas            this unit includes the core routines for computing 

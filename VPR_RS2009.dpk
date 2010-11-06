@@ -1,4 +1,4 @@
-package VPR_D2010;
+package VPR_RS2009;
 
 {$R *.res}
 {$ALIGN 8}
@@ -27,7 +27,7 @@ package VPR_D2010;
 requires
   rtl,
   vcl,
-  GR32_RS2010;
+  GR32_RS2009;
 
 contains
   GR32_PolygonsEx in 'GR32_PolygonsEx.pas',
