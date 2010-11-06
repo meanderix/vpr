@@ -1,4 +1,4 @@
-package VPR_D2006;
+package VPR_RSXE1;
 
 {$R *.res}
 {$ALIGN 8}
@@ -27,7 +27,7 @@ package VPR_D2006;
 requires
   rtl,
   vcl,
-  GR32_RS2006;
+  GR32_RSXE1;
 
 contains
   GR32_PolygonsEx in 'GR32_PolygonsEx.pas',
