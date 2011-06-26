@@ -31,6 +31,9 @@ interface
 
 {$BOOLEVAL OFF}
 
+// Undefine this symbol if you get stack overflow errors
+{$DEFINE USESTACKALLOC}
+
 uses
   GR32, GR32_Transforms;
 
@@ -381,7 +384,7 @@ begin
   Result[0].Y := Y;
 
   // calculate complex offset
-  SinCos(M, C.Y, C.X);
+  GR32_Math.SinCos(M, C.Y, C.X);
   D := C;
 
   // second item
@@ -417,7 +420,7 @@ begin
     dy := Points[NextI].Y - Points[I].Y;
     if (dx <> 0) or (dy <> 0) then
     begin
-      f := 1 / Hypot(dx, dy);
+      f := 1 / GR32_Math.Hypot(dx, dy);
       dx := dx * f;
       dy := dy * f;
     end;
@@ -672,6 +675,14 @@ begin
   Result.X := P1.X + W * (P2.X - P1.X);
 end;
 
+function GetCode(const P: TFloatPoint; const R: TFloatRect): Integer; {$IFDEF USEINLINING}inline;{$ENDIF}
+begin
+  Result := Ord(P.X >= R.Left) or
+    (Ord(P.X <= R.Right) shl 1) or
+    (Ord(P.Y >= R.Top) shl 2) or
+    (Ord(P.Y <= R.Bottom) shl 3);
+end;
+
 function ClipPolygon(const Points: TArrayOfFloatPoint; const ClipRect: TFloatRect): TArrayOfFloatPoint;
 type
   TInterpolateProc = function(X: TFloat; const P1, P2: TFloatPoint): TFloatPoint;
@@ -683,38 +694,24 @@ var
   I, J, K, L, N: Integer;
   X, Y, Z, Code, Count: Integer;
   X1, X2, Y1, Y2: TFloat;
-  Codes: PIntegerArray;
+  Codes: PByteArray;
   NextIndex: PIntegerArray;
   Temp: PFloatPointArray;
-label
-  ExitProc;
 
   procedure AddPoint(Index: Integer; const P: TFloatPoint);
   begin
     Temp[K] := P;
-    Codes[K] :=
-       Ord(P.X >= ClipRect.Left) or
-      (Ord(P.X <= ClipRect.Right) shl 1) or
-      (Ord(P.Y >= ClipRect.Top) shl 2) or
-      (Ord(P.Y <= ClipRect.Bottom) shl 3);
-
+    Codes[K] := GetCode(P, ClipRect);
     Inc(K);
     Inc(Count);
   end;
 
-  function ClipEdges(Mask: Integer; V: TFloat; Interpolate: TInterpolateProc): Boolean;
+  procedure ClipEdges(Mask: Integer; V: TFloat; Interpolate: TInterpolateProc);
   var
     I, NextI, StopIndex: Integer;
   begin
-    Result := False;
     I := 0;
     while (I < K) and (Codes[I] and Mask = 0) do Inc(I);
-    if I = K then { all points outside }
-    begin
-      ClipPolygon := nil;
-      Result := True;
-      Exit;
-    end;
 
     StopIndex := I;
     repeat
@@ -734,6 +731,7 @@ label
           NextI := NextIndex[I];
         end;
         { outside -> inside }
+        NextIndex[I] := K;
         NextIndex[K] := NextI;
         AddPoint(I, Interpolate(V, Temp[I], Temp[NextI]));
       end;
@@ -744,7 +742,11 @@ label
 
 begin
   N := Length(Points);
-  Codes := StackAlloc(N * SAFEOVERSIZE * SizeOf(Integer));
+{$IFDEF USESTACKALLOC}
+  Codes := StackAlloc(N * SAFEOVERSIZE * SizeOf(Byte));
+{$ELSE}
+  GetMem(Codes, N * SAFEOVERSIZE * SizeOf(Byte));
+{$ENDIF}
   X := 15;
   Y := 0;
   X1 := ClipRect.Left;
@@ -753,11 +755,7 @@ begin
   Y2 := ClipRect.Bottom;
   for I := 0 to N - 1 do
   begin
-    Code :=
-       Ord(Points[I].X >= X1) or
-      (Ord(Points[I].X <= X2) shl 1) or
-      (Ord(Points[I].Y >= Y1) shl 2) or
-      (Ord(Points[I].Y <= Y2) shl 3);
+    Code := GetCode(Points[I], ClipRect);
     Codes[I] := Code;
     X := X and Code;
     Y := Y or Code;
@@ -780,9 +778,13 @@ begin
       Inc(Count, POPCOUNT[Z xor Code]);
       Z := Code;
     end;
-
+{$IFDEF USESTACKALLOC}
     Temp := StackAlloc(Count * SizeOf(TFloatPoint));
     NextIndex := StackAlloc(Count * SizeOf(TFloatPoint));
+{$ELSE}
+    GetMem(Temp, Count * SizeOf(TFloatPoint));
+    GetMem(NextIndex, Count * SizeOf(TFloatPoint));
+{$ENDIF}
 
     Move(Points[0], Temp[0], N * SizeOf(TFloatPoint));
     for I := 0 to N - 2 do NextIndex[I] := I + 1;
@@ -790,14 +792,18 @@ begin
 
     Count := N;
     K := N;
-    if X and 1 = 0 then if ClipEdges(1, ClipRect.Left, InterpolateX) then goto ExitProc;
-    if X and 2 = 0 then if ClipEdges(2, ClipRect.Right, InterpolateX) then goto ExitProc;
-    if X and 4 = 0 then if ClipEdges(4, ClipRect.Top, InterpolateY) then goto ExitProc;
-    if X and 8 = 0 then if ClipEdges(8, ClipRect.Bottom, InterpolateY) then goto ExitProc;
+    if X and 1 = 0 then ClipEdges(1, ClipRect.Left, InterpolateX);
+    if X and 2 = 0 then ClipEdges(2, ClipRect.Right, InterpolateX);
+    if X and 4 = 0 then ClipEdges(4, ClipRect.Top, InterpolateY);
+    if X and 8 = 0 then ClipEdges(8, ClipRect.Bottom, InterpolateY);
 
     SetLength(Result, Count);
+
+    { start with first point inside the clipping rectangle }
     I := 0;
-    while Codes[I] = 0 do Inc(I);
+    while Codes[I] = 0 do
+      I := NextIndex[I];
+
     J := I;
     L := 0;
     repeat
@@ -806,11 +812,19 @@ begin
       I := NextIndex[I];
     until I = J;
 
-ExitProc:
+{$IFDEF USESTACKALLOC}
     StackFree(NextIndex);
     StackFree(Temp);
+{$ELSE}
+    FreeMem(NextIndex);
+    FreeMem(Temp);
+{$ENDIF}
   end;
+{$IFDEF USESTACKALLOC}
   StackFree(Codes);
+{$ELSE}
+  FreeMem(Codes);
+{$ENDIF}
 end;
 
 function BuildDashedLine(const Points: TArrayOfFloatPoint; const DashArray: array of TFloat;
@@ -854,7 +868,7 @@ begin
   begin
     dx := Points[I].X - Points[I - 1].X;
     dy := Points[I].Y - Points[I - 1].Y;
-    d := Hypot(dx, dy);
+    d := GR32_Math.Hypot(dx, dy);
     if d = 0 then  Continue;
     dx := dx / d;
     dy := dy / d;
