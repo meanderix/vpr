@@ -697,6 +697,8 @@ var
   Codes: PByteArray;
   NextIndex: PIntegerArray;
   Temp: PFloatPointArray;
+label
+  ExitProc;
 
   procedure AddPoint(Index: Integer; const P: TFloatPoint);
   begin
@@ -706,12 +708,20 @@ var
     Inc(Count);
   end;
 
-  procedure ClipEdges(Mask: Integer; V: TFloat; Interpolate: TInterpolateProc);
+  function ClipEdges(Mask: Integer; V: TFloat; Interpolate: TInterpolateProc): Boolean;
   var
     I, NextI, StopIndex: Integer;
   begin
     I := 0;
     while (I < K) and (Codes[I] and Mask = 0) do Inc(I);
+
+    Result := I = K;
+    if Result then { all points outside }
+    begin
+      ClipPolygon := nil;
+      Result := True;
+      Exit;
+    end;
 
     StopIndex := I;
     repeat
@@ -792,10 +802,10 @@ begin
 
     Count := N;
     K := N;
-    if X and 1 = 0 then ClipEdges(1, ClipRect.Left, InterpolateX);
-    if X and 2 = 0 then ClipEdges(2, ClipRect.Right, InterpolateX);
-    if X and 4 = 0 then ClipEdges(4, ClipRect.Top, InterpolateY);
-    if X and 8 = 0 then ClipEdges(8, ClipRect.Bottom, InterpolateY);
+    if X and 1 = 0 then if ClipEdges(1, ClipRect.Left, InterpolateX) then goto ExitProc;
+    if X and 2 = 0 then if ClipEdges(2, ClipRect.Right, InterpolateX) then goto ExitProc;
+    if X and 4 = 0 then if ClipEdges(4, ClipRect.Top, InterpolateY) then goto ExitProc;
+    if X and 8 = 0 then if ClipEdges(8, ClipRect.Bottom, InterpolateY) then goto ExitProc;
 
     SetLength(Result, Count);
 
@@ -812,6 +822,7 @@ begin
       I := NextIndex[I];
     until I = J;
 
+ExitProc:
 {$IFDEF USESTACKALLOC}
     StackFree(NextIndex);
     StackFree(Temp);
