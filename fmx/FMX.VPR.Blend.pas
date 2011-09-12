@@ -395,7 +395,7 @@ asm
         PSRLW     XMM1,8
         PACKUSWB  XMM1,XMM0
         MOVD      dword ptr [RDX],XMM1
-        OR        dword ptr [RDX],$ff000000  // set opaque
+//        OR        dword ptr [RDX],$ff000000  // set opaque
 
 @1:
 end;
