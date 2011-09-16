@@ -1327,14 +1327,22 @@ var
   Scanline: PAlphaColorArray;
 begin
   Count := Span.X2 - Span.X1 + 1;
+{$IFDEF USESTACKALLOC}
   AlphaValues := StackAlloc(Count * SizeOf(TAlphaColor));
+{$ELSE}
+  GetMem(AlphaValues, Count * SizeOf(TAlphaColor));
+{$ENDIF}
   //FFillProcUnpacked(Span.Values, AlphaValues, Count, FColor);
   MakeAlphaNonZeroUP(Span.Values, AlphaValues, Count, FFillColor);
 
   Scanline := PAlphaColorArray(Integer(FBufferBits) + DstY * Width * SizeOf(TAlphaColor));
 
   BlendLine(@AlphaValues[0], @ScanLine[Span.X1], Count);
+{$IFDEF USESTACKALLOC}
   StackFree(AlphaValues);
+{$ELSE}
+  FreeMem(AlphaValues);
+{$ENDIF}
 end;
 {$IFDEF USESTACKALLOC}
 {$W-}
