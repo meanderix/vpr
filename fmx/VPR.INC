@@ -23,8 +23,10 @@
  *
  * ***** END LICENSE BLOCK ***** *)
 
-// do not set the DefaultCanvas variable upon initialization
-{.$DEFINE DISABLEAUTOINITIALIZE}
+{ FONTS }
+
+// disable font hinting
+{.$DEFINE NOHINTING}
 
 // enable cleartype text rendering
 {$DEFINE CLEARTYPE}
@@ -35,20 +37,31 @@
 // enable cleartype with a different filtering scheme
 {.$DEFINE CLEARTYPESMOOTH}
 
-// enable gamma correction
-{$DEFINE GAMMACORRECTION}
+// disable horizontal hinting by stretching text horizontally
+// source: Maxim Shemanarev, "Texts Rasterization Exposures",
+// <http://www.antigrain.com/research/font_rasterization/index.html>
+{$DEFINE NOHORIZONTALHINTING}
+
+
+{ GRADIENTS }
 
 // use look-up table for gradients (faster)
 {$DEFINE GRADIENTLUT}
 
-// disable font hinting
-{.$DEFINE NOHINTING}
 
-// use stack memory allocation routine (32-bit only)
-{$DEFINE USESTACKALLOC}
+{ GENERAL }
+
+// enable gamma correction
+{$DEFINE GAMMACORRECTION}
+
+// do not set the DefaultCanvas variable upon initialization
+{.$DEFINE DISABLEAUTOINITIALIZE}
 
 // use only pure pascal routines
 {.$DEFINE PUREPASCAL}
+
+// use stack memory allocation routine (32-bit only)
+{$DEFINE USESTACKALLOC}
 
 // disable conversions to double for single-precision expressions (major speed-up)
 {$EXCESSPRECISION OFF}
