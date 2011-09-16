@@ -287,6 +287,9 @@ begin
     (Ord(P.Y <= R.Bottom) shl 3);
 end;
 
+{$IFDEF USESTACKALLOC}
+{$W+}
+{$ENDIF}
 function ClipPolygon(const Points: TPolygon; const ClipRect: TRectF): TPolygon;
 type
   TInterpolateProc = function(X: Single; const P1, P2: TPointF): TPointF;
@@ -437,6 +440,9 @@ ExitProc:
   FreeMem(Codes);
 {$ENDIF}
 end;
+{$IFDEF USESTACKALLOC}
+{$W-}
+{$ENDIF}
 
 function PolygonBounds(const Points: TPolygon): TRectF;
 var
@@ -864,6 +870,9 @@ begin
 end;
 
 
+{$IFDEF USESTACKALLOC}
+{$W+}
+{$ENDIF}
 procedure GlyphOutlineToPath(Handle: HDC; Path: TPathData; DstX, DstY: Single;
   const Glyph: Integer; out Metrics: TGlyphMetrics);
 var
@@ -970,6 +979,9 @@ begin
 
   StackFree(PGlyphMem);
 end;
+{$IFDEF USESTACKALLOC}
+{$W-}
+{$ENDIF}
 
 
 procedure TextToPath(DC: HDC; Path: TPathData; var ARect: TRectF;
