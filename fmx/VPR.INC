@@ -63,9 +63,5 @@
 // use stack memory allocation routine (32-bit only)
 {$DEFINE USESTACKALLOC}
 
-{$IFDEF USESTACKALLOC}
-{-$W+}
-{$ENDIF}
-
 // disable conversions to double for single-precision expressions (major speed-up)
 {$EXCESSPRECISION OFF}

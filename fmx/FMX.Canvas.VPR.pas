@@ -1317,6 +1317,9 @@ begin
   end;
 end;
 
+{$IFDEF USESTACKALLOC}
+{$W+}
+{$ENDIF}
 procedure TCanvasVPR.RenderOpaque(const Span: TValueSpan; DstY: Integer);
 var
   AlphaValues: PAlphaColorArray;
@@ -1333,6 +1336,9 @@ begin
   BlendLine(@AlphaValues[0], @ScanLine[Span.X1], Count);
   StackFree(AlphaValues);
 end;
+{$IFDEF USESTACKALLOC}
+{$W-}
+{$ENDIF}
 
 procedure TCanvasVPR.RenderOpaqueLCD(const Span: TValueSpan; DstY: Integer);
 const
