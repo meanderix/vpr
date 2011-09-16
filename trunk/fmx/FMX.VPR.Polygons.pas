@@ -75,6 +75,10 @@ procedure StackFree(P: Pointer); register;
 var
   UseHinting: Boolean = {$IFDEF NOHINTING}False{$ELSE}True{$ENDIF};
 
+// stretching factor when calling GetGlyphOutline()
+const
+  HORZSTRETCH = 16;
+
 implementation
 
 uses
@@ -819,8 +823,9 @@ const
 
 const
   FixedOne = $10000;
+
   VertFlip_mat2: tmat2 = (
-    eM11: (fract: 0; Value: 1);
+    eM11: (fract: 0; Value: {$IFNDEF NOHORIZONTALHINTING}1{$ELSE}HORZSTRETCH{$ENDIF});
     eM12: (fract: 0; Value: 0);
     eM21: (fract: 0; Value: 0);
     eM22: (fract: 0; Value: -1);
@@ -983,7 +988,7 @@ var
 
   procedure NewLine;
   begin
-    X := ARect.Left;
+    X := ARect.Left{$IFDEF NOHORIZONTALHINTING}*HORZSTRETCH{$ENDIF};
     Y := Y + TextMetric.tmHeight;
   end;
 
@@ -1000,11 +1005,17 @@ var
     end;
   end;
 
+  procedure TestNewLine(X: Single);
+  begin
+    if X > ARect.Right{$IFDEF NOHORIZONTALHINTING}*HORZSTRETCH{$ENDIF} then
+      NewLine;
+  end;
+
 begin
   GetTextMetrics(DC, TextMetric);
 
   TextLen := Length(Text);
-  X := ARect.Left;
+  X := ARect.Left {$IFDEF NOHORIZONTALHINTING}*HORZSTRETCH{$ENDIF};
   Y := ARect.Top + TextMetric.tmAscent;
   XMax := X;
   for I := 1 to TextLen do
@@ -1026,15 +1037,14 @@ begin
               while (J <= TextLen) and ([Ord(Text[J])] * [CHAR_CR, CHAR_NL, CHAR_SP] = []) do
                 Inc(J);
               S := Copy(Text, I + 1, J - I - 1);
-              if X + MeasureTextX(S) > ARect.Right then
-                NewLine;
+              TestNewLine(X + MeasureTextX(S));
             end;
           end;
       end;
     end
     else
     begin
-      if X > ARect.Right then NewLine;
+      TestNewLine(X);
 
       GlyphOutlineToPath(DC, Path, X, Y, CharValue, GlyphMetrics);
       X := X + GlyphMetrics.gmCellIncX;
@@ -1042,7 +1052,14 @@ begin
     end;
   end;
   Y := Y + TextMetric.tmHeight - TextMetric.tmAscent;
+
+{$IFNDEF NOHORIZONTALHINTING}
   ARect := RectF(ARect.Left, ARect.Top, XMax, Y);
+{$ELSE}
+  ARect := RectF(ARect.Left, ARect.Top, XMax{$IFDEF NOHORIZONTALHINTING}/HORZSTRETCH{$ENDIF}, Y);
+  if Assigned(Path) then
+    Path.Scale(1/HORZSTRETCH, 1);
+{$ENDIF}
 end;
 
 function MeasureText(DC: HDC;
