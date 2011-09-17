@@ -40,7 +40,7 @@
 // disable horizontal hinting by stretching text horizontally
 // source: Maxim Shemanarev, "Texts Rasterization Exposures",
 // <http://www.antigrain.com/research/font_rasterization/index.html>
-{$DEFINE NOHORIZONTALHINTING}
+{.$DEFINE NOHORIZONTALHINTING}
 
 
 { GRADIENTS }
