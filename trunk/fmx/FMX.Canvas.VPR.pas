@@ -68,7 +68,8 @@ implementation
 
 uses
   Winapi.Windows, FMX.Types, System.Types, System.Classes, System.SysUtils,
-  System.UITypes, System.Math, FMX.VPR, FMX.VPR.Polygons, FMX.VPR.Blend;
+  System.UITypes, System.Math, FMX.VPR, FMX.VPR.Polygons, FMX.VPR.Blend,
+  FMX.VPR.Text;
 
 type
   { TBitmapHelper }
@@ -1011,7 +1012,7 @@ procedure TCanvasVPR.MeasureText(var ARect: TRectF; const AText: String;
   const WordWrap: boolean; const Flags: TFillTextFlags; const ATextAlign,
   AVTextAlign: TTextAlign);
 begin
-  ARect := FMX.VPR.Polygons.MeasureText(FFontHandle, ARect, AText, WordWrap, ATextAlign, AVTextAlign);
+  ARect := FMX.VPR.Text.MeasureText(FFontHandle, ARect, AText, WordWrap, ATextAlign, AVTextAlign);
 end;
 
 procedure TCanvasVPR.MultyMatrix(const M: TMatrix);
@@ -1471,7 +1472,7 @@ function TCanvasVPR.TextToPath(Path: TPathData; const ARect: TRectF;
   const AText: String; const WordWrap: boolean; const ATextAlign,
   AVTextAlign: TTextAlign): boolean;
 begin
-  FMX.VPR.Polygons.TextToPath(FFontHandle, Path, ARect, AText, WordWrap, ATextAlign, AVTextAlign);
+  FMX.VPR.Text.TextToPath(FFontHandle, Path, ARect, AText, WordWrap, ATextAlign, AVTextAlign);
   Result := True;
 end;
 
