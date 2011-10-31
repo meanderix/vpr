@@ -29,7 +29,7 @@ interface
 
 {$I GR32.inc}
 
-{.$DEFINE USEGR32GAMMA}
+{$DEFINE USEGR32GAMMA}
 {.$DEFINE CHANGENOTIFICATIONS}
 
 uses
@@ -703,7 +703,9 @@ begin
 }
     BlendRGB_MMX(Color, PColor32(@Weights[I])^, Dst[I]);
   end;
-  EMMS;
+  asm
+	EMMS
+  end;
 end;
 
 { TPolygonRenderer32 }
