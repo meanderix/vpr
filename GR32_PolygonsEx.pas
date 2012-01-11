@@ -41,7 +41,6 @@ type
   TPackedFillProc = procedure(Coverage: Single; AlphaValues: PColor32Array;
     Count: Integer; Color: TColor32);
 
-type
   { TPolygonRenderer }
   TPolygonRenderer = class
   protected
@@ -103,13 +102,14 @@ procedure PolylineFS(Bitmap: TBitmap32; const Points: TArrayOfFloatPoint;
 implementation
 
 uses
-  GR32_LowLevel, GR32_Blend, Math, SysUtils;
+  GR32_LowLevel, GR32_Blend, GR32_System, Math, SysUtils;
 
 type
   TBitmap32Access = class(TBitmap32);
 
 var
   bias_ptr: Pointer;
+  BlendRGBReg: TBlendMemEx;
 
 // routines for color filling:
 
@@ -662,16 +662,29 @@ asm
         mov       dword ptr [ecx], edx
 end;
 
-procedure BlendRGB_MMX(F, W: TColor32; var B: TColor32);
+procedure BlendRGB_Pas(F: TColor32; var B: TColor32; W: TColor32);
+var
+  C: TColor32Entry absolute F;
+  Wghts: TColor32Entry absolute W;
+begin
+  with TColor32Entry(B) do
+  begin
+    R := (C.R - R) * Wghts.R div 255 + R;
+    G := (C.G - G) * Wghts.G div 255 + G;
+    B := (C.B - B) * Wghts.B div 255 + B;
+  end;
+end;
+
+procedure BlendRGB_MMX(F: TColor32; var B: TColor32; W: TColor32);
 asm
         PXOR      MM2,MM2
         MOVD      MM0,EAX
         PUNPCKLBW MM0,MM2
-        MOVD      MM1,[ECX]
+        MOVD      MM1,[EDX]
         PUNPCKLBW MM1,MM2
-        BSWAP     EDX
+        BSWAP     ECX
         PSUBW     MM0,MM1
-        MOVD      MM3,EDX
+        MOVD      MM3,ECX
         PUNPCKLBW MM3,MM2
         PMULLW    MM0,MM3
         MOV       EAX,bias_ptr
@@ -680,29 +693,38 @@ asm
         PADDW     MM1,MM0
         PSRLW     MM1,8
         PACKUSWB  MM1,MM2
-        MOVD      [ECX],MM1
-        MOV       ECX,bias_ptr
+        MOVD      [EDX],MM1
+        MOV       EDX,bias_ptr
+end;
+
+procedure BlendRGB_SSE2(F: TColor32; var B: TColor32; W: TColor32);
+asm
+        PXOR      XMM2,XMM2
+        MOVD      XMM0,EAX
+        PUNPCKLBW XMM0,XMM2
+        MOVD      XMM1,[EDX]
+        PUNPCKLBW XMM1,XMM2
+        BSWAP     ECX
+        PSUBW     XMM0,XMM1
+        MOVD      XMM3,ECX
+        PUNPCKLBW XMM3,XMM2
+        PMULLW    XMM0,XMM3
+        MOV       EAX, bias_ptr
+        PSLLW     XMM1,8
+        PADDW     XMM1,[EAX]
+        PADDW     XMM1,XMM0
+        PSRLW     XMM1,8
+        PACKUSWB  XMM1,XMM2
+        MOVD      [EDX],XMM1
+        MOV       EDX, bias_ptr
 end;
 
 procedure CombineLineLCD(Weights: PRGBTripleArray; Dst: PColor32Array; Color: TColor32; Count: Integer);
 var
   I: Integer;
-//  C: TColor32Entry absolute Color;
-//  W: PRGBTriple;
 begin
   for I := 0 to Count - 1 do
-  begin
-{
-    W := @Weights[I];
-    with PColor32Entry(@Dst[I])^ do
-    begin
-      R := (C.R - R) * W.R div 255 + R;
-      G := (C.G - G) * W.G div 255 + G;
-      B := (C.B - B) * W.B div 255 + B;
-    end;
-}
-    BlendRGB_MMX(Color, PColor32(@Weights[I])^, Dst[I]);
-  end;
+    BlendRGBReg(Color, Dst[I], PColor32(@Weights[I])^);
   asm
 	EMMS
   end;
@@ -864,7 +886,20 @@ begin
   end;
 end;
 
+const
+  FID_BlendRGB = $100;  // must be unique!
+
+procedure RegisterBindings;
+begin
+  BlendRegistry.RegisterBinding(FID_BlendRGB, @@BlendRGBReg);
+  BlendRegistry.Add(FID_BlendRGB, @BlendRGB_Pas);
+  BlendRegistry.Add(FID_BlendRGB, @BlendRGB_MMX, [ciMMX]);
+  BlendRegistry.Add(FID_BlendRGB, @BlendRGB_SSE2, [ciMMX]);
+  BlendRegistry.RebindAll;
+end;
+
 initialization
+  RegisterBindings;
   bias_ptr := GR32_Blend.bias_ptr;
 
 end.
