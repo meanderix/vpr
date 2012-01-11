@@ -1257,10 +1257,10 @@ begin
   with Result do
   begin
     Points[0] := FloatPoint(Q0);
-    Points[1].X := (Q0.X + 2*Q1.X) / (3 * FixedOne);
-    Points[1].Y := (Q0.Y + 2*Q1.Y) / (3 * FixedOne);
-    Points[2].X := (Q0.X + 2*Q2.X) / (3 * FixedOne);
-    Points[2].Y := (Q0.Y + 2*Q2.Y) / (3 * FixedOne);
+    Points[1].X := (Q0.X + 2 * Q1.X) / (3 * FixedOne);
+    Points[1].Y := (Q0.Y + 2 * Q1.Y) / (3 * FixedOne);
+    Points[2].X := (Q0.X + 2 * Q2.X) / (3 * FixedOne);
+    Points[2].Y := (Q0.Y + 2 * Q2.Y) / (3 * FixedOne);
   end;
 end;
 
