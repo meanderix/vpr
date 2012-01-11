@@ -4,13 +4,16 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  StdCtrls, XPMan, GR32_Image;
+  StdCtrls, XPMan, GR32_Image, Vcl.ExtCtrls;
 
 type
   TMainForm = class(TForm)
     Img: TImage32;
     btnDrawCurve: TButton;
+    cbxUpdate: TCheckBox;
+    tmrUpdate: TTimer;
     procedure btnDrawCurveClick(Sender: TObject);
+    procedure cbxUpdateClick(Sender: TObject);
   end;
 
 var
@@ -65,8 +68,7 @@ var
 
   procedure Recurse(I: Integer; const P1, P2: TFloatPoint; const t1, t2: TFloat);
   var
-    f, Index: Integer;
-    t, W: TFloat;
+    t: TFloat;
     P: TFloatPoint;
   begin
     AddPoint(P1);
@@ -161,6 +163,11 @@ begin
     PY := Ellipse(PX[I].X, PX[I].Y, 2.75, 2.75);
     PolygonFS(Img.Bitmap, PY, $ff00ff00);
   end;
+end;
+
+procedure TMainForm.cbxUpdateClick(Sender: TObject);
+begin
+  tmrUpdate.Enabled := cbxUpdate.Checked;
 end;
 
 end.
