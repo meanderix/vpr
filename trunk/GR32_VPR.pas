@@ -267,7 +267,7 @@ asm
         JL      @SMALL
 
 {--- align memory ---}
-        PUSH    EBX
+        PUSH    RBX
         PXOR    XMM4,XMM4
         MOV     EBX,EAX
         AND     EBX,15       // get aligned count
@@ -298,8 +298,8 @@ asm
         PSRLDQ  XMM4,12
 
 @ENDALIGNING:
-        POP     EBX
-        PUSH    EBX
+        POP     RBX
+        PUSH    RBX
         MOV     ECX,EDX
         SAR     ECX,2
 @LOOP:
