@@ -654,12 +654,28 @@ begin
 end;
 
 function DivMod(Dividend, Divisor: Integer; var Remainder: Integer): Integer;
+{$IFDEF PUREPASCAL}
+begin
+  Result := Dividend div Divisor;
+  Remainder := Dividend mod Divisor;
+{$ELSE}
 asm
+{$IFDEF TARGET_x86}
         push      edx
         cdq
         idiv      dword ptr [esp]
         add       esp,$04
         mov       dword ptr [ecx], edx
+{$ENDIF}
+{$IFDEF TARGET_x64}
+        mov       eax, ecx
+        push      edx
+        cdq
+        idiv      dword ptr [esp]
+        add       esp,$04
+        mov       dword ptr [r8d], edx
+{$ENDIF}
+{$ENDIF}
 end;
 
 procedure BlendRGB_Pas(F: TColor32; var B: TColor32; W: TColor32);
@@ -675,6 +691,7 @@ begin
   end;
 end;
 
+{$IFNDEF PUREPASCAL}
 procedure BlendRGB_MMX(F: TColor32; var B: TColor32; W: TColor32);
 asm
         PXOR      MM2,MM2
@@ -718,6 +735,7 @@ asm
         MOVD      [EDX],XMM1
         MOV       EDX, bias_ptr
 end;
+{$ENDIF}
 
 procedure CombineLineLCD(Weights: PRGBTripleArray; Dst: PColor32Array; Color: TColor32; Count: Integer);
 var
@@ -725,9 +743,7 @@ var
 begin
   for I := 0 to Count - 1 do
     BlendRGBReg(Color, Dst[I], PColor32(@Weights[I])^);
-  asm
-	EMMS
-  end;
+  EMMS;
 end;
 
 { TPolygonRenderer32 }
@@ -893,8 +909,10 @@ procedure RegisterBindings;
 begin
   BlendRegistry.RegisterBinding(FID_BlendRGB, @@BlendRGBReg);
   BlendRegistry.Add(FID_BlendRGB, @BlendRGB_Pas);
+  {$IFNDEF PUREPASCAL}
   BlendRegistry.Add(FID_BlendRGB, @BlendRGB_MMX, [ciMMX]);
   BlendRegistry.Add(FID_BlendRGB, @BlendRGB_SSE2, [ciMMX]);
+  {$ENDIF}
   BlendRegistry.RebindAll;
 end;
 
