@@ -667,7 +667,7 @@ begin
 end;
 
 {$IFNDEF PUREPASCAL}
-{$IFDEF TARGET_x86}
+{$IFNDEF OMIT_MMX}
 procedure BlendRGB_MMX(F: TColor32; var B: TColor32; W: TColor32);
 asm
         PXOR      MM2,MM2
@@ -909,7 +909,9 @@ begin
   BlendRegistry.RegisterBinding(FID_BlendRGB, @@BlendRGBReg);
   BlendRegistry.Add(FID_BlendRGB, @BlendRGB_Pas);
   {$IFNDEF PUREPASCAL}
+  {$IFNDEF OMIT_MMX}
   BlendRegistry.Add(FID_BlendRGB, @BlendRGB_MMX, [ciMMX]);
+  {$ENDIF}
   BlendRegistry.Add(FID_BlendRGB, @BlendRGB_SSE2, [ciMMX]);
   {$ENDIF}
   BlendRegistry.RebindAll;
