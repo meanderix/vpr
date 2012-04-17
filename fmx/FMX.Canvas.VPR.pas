@@ -1562,7 +1562,7 @@ function TPathDataHelper.FlattenToPolyPolygon(var PP: TPolyPolygon;
 var
   I, J, K: Integer;
   SP, CurPoint: TPointF;
-  F, S: Single;
+  S: Single;
   Bounds, R: TRectF;
   P: TPathPoint;
   Polygon: ^TPolygon;
