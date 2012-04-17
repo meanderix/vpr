@@ -139,7 +139,7 @@ begin
   end;
 end;
 
-procedure _CumSum(Values: PSingleArray; Count: Integer);
+procedure CumSum_Native(Values: PSingleArray; Count: Integer);
 var
   I: Integer;
   V: TFloat;
@@ -153,10 +153,12 @@ begin
   end;
 end;
 
+{$IFNDEF PUREPASCAL}
 
 // Aligned SSE2 version -- Credits: Sanyin <prevodilac@hotmail.com>
-procedure SSE2_CumSum(Values: PSingleArray; Count: Integer);
+procedure CumSum_SSE2(Values: PSingleArray; Count: Integer);
 asm
+{$IFDEF TARGET_x86}
         MOV     ECX,EDX
         CMP     ECX,2       // if count < 2, exit
         JL      @END
@@ -256,8 +258,111 @@ asm
         ADD     EAX,4
         DEC     ECX
         JNZ     @LOOP3
+{$ENDIF}
+{$IFDEF TARGET_x64}
+        MOV     ECX,EDX
+        CMP     ECX,2       // if count < 2, exit
+        JL      @END
+        CMP     ECX,32      // if count < 32, avoid SSE2 overhead
+        JL      @SMALL
+
+{--- align memory ---}
+        PUSH    EBX
+        PXOR    XMM4,XMM4
+        MOV     EBX,EAX
+        AND     EBX,15       // get aligned count
+        JZ      @ENDALIGNING // already aligned
+        ADD     EBX,-16
+        NEG     EBX          // get bytes to advance
+        JZ      @ENDALIGNING // already aligned
+
+        MOV     ECX,EBX
+        SAR     ECX,2        // div with 4 to get cnt
+        SUB     EDX,ECX
+
+        ADD     EAX,4
+        DEC     ECX
+        JZ      @SETUPLAST   // one element
+
+@ALIGNINGLOOP:
+        FLD     DWORD PTR [EAX-4]
+        FADD    DWORD PTR [EAX]
+        FSTP    DWORD PTR [EAX]
+        ADD     EAX,4
+        DEC     ECX
+        JNZ     @ALIGNINGLOOP
+
+@SETUPLAST:
+        MOVUPS  XMM4,[EAX-4]
+        PSLLDQ  XMM4,12
+        PSRLDQ  XMM4,12
+
+@ENDALIGNING:
+        POP     EBX
+        PUSH    EBX
+        MOV     ECX,EDX
+        SAR     ECX,2
+@LOOP:
+        MOVAPS  XMM0,[EAX]
+        PXOR    XMM5,XMM5
+        PCMPEQD XMM5,XMM0
+        PMOVMSKB EBX,XMM5
+        CMP     EBX,$0000FFFF
+        JNE     @NORMAL
+        PSHUFD  XMM0,XMM4,0
+        JMP     @SKIP
+
+@NORMAL:
+        ADDPS   XMM0,XMM4
+        PSHUFD  XMM1,XMM0,$e4
+        PSLLDQ  XMM1,4
+        PSHUFD  XMM2,XMM1,$90
+        PSHUFD  XMM3,XMM1,$40
+        ADDPS   XMM2,XMM3
+        ADDPS   XMM1,XMM2
+        ADDPS   XMM0,XMM1
+
+        PSHUFLW XMM4,XMM0,$E4
+        PSRLDQ  XMM4,12
+
+@SKIP:
+        PREFETCHNTA [eax+16*16*2]
+        MOVAPS  [EAX],XMM0
+        ADD     EAX,16
+        SUB     ECX,1
+        JNZ     @LOOP
+        POP     EBX
+        MOV     ECX,EDX
+        SAR     ECX,2
+        SHL     ECX,2
+        SUB     EDX,ECX
+        MOV     ECX,EDX
+        JZ      @END
+
+@LOOP2:
+        FLD     DWORD PTR [EAX-4]
+        FADD    DWORD PTR [EAX]
+        FSTP    DWORD PTR [EAX]
+        ADD     EAX,4
+        DEC     ECX
+        JNZ     @LOOP2
+        JMP     @END
+
+@SMALL:
+        MOV     ECX,EDX
+        ADD     EAX,4
+        DEC     ECX
+@LOOP3:
+        FLD     DWORD PTR [EAX-4]
+        FADD    DWORD PTR [EAX]
+        FSTP    DWORD PTR [EAX]
+        ADD     EAX,4
+        DEC     ECX
+        JNZ     @LOOP3
+{$ENDIF}
 @END:
 end;
+{$ENDIF}
 
 procedure ExtractSingleSpan(const ScanLine: TScanLine; out Span: TValueSpan;
   SpanData: PSingleArray);
@@ -672,10 +777,16 @@ begin
     RenderPolygon(Points, ClipRect, Code, Data);
 end;
 
+{$IFNDEF PUREPASCAL}
 const
-  CumSumProcs: array [Boolean] of TCumSumProc = (_CumSum, SSE2_CumSum);
+  CumSumProcs: array [Boolean] of TCumSumProc = (CumSum_Native, CumSum_SSE2);
+{$ENDIF}
 
 initialization
+  {$IFDEF PUREPASCAL}
+  CumSum := CumSum_Native;
+  {$ELSE}
   CumSum := CumSumProcs[HasInstructionSet(ciSSE2)];
+  {$ENDIF}
 
 end.
