@@ -653,31 +653,6 @@ begin
   AlphaValues[0] := AlphaValues[0] div 3;
 end;
 
-function DivMod(Dividend, Divisor: Integer; var Remainder: Integer): Integer;
-{$IFDEF PUREPASCAL}
-begin
-  Result := Dividend div Divisor;
-  Remainder := Dividend mod Divisor;
-{$ELSE}
-asm
-{$IFDEF TARGET_x86}
-        push      edx
-        cdq
-        idiv      dword ptr [esp]
-        add       esp,$04
-        mov       dword ptr [ecx], edx
-{$ENDIF}
-{$IFDEF TARGET_x64}
-        mov       eax, ecx
-        push      edx
-        cdq
-        idiv      dword ptr [esp]
-        add       esp,$04
-        mov       dword ptr [r8d], edx
-{$ENDIF}
-{$ENDIF}
-end;
-
 procedure BlendRGB_Pas(F: TColor32; var B: TColor32; W: TColor32);
 var
   C: TColor32Entry absolute F;
@@ -692,6 +667,7 @@ begin
 end;
 
 {$IFNDEF PUREPASCAL}
+{$IFDEF TARGET_x86}
 procedure BlendRGB_MMX(F: TColor32; var B: TColor32; W: TColor32);
 asm
         PXOR      MM2,MM2
@@ -704,7 +680,7 @@ asm
         MOVD      MM3,ECX
         PUNPCKLBW MM3,MM2
         PMULLW    MM0,MM3
-        MOV       EAX,bias_ptr
+        MOV       EAX, bias_ptr
         PSLLW     MM1,8
         PADDW     MM1,[EAX]
         PADDW     MM1,MM0
@@ -713,9 +689,11 @@ asm
         MOVD      [EDX],MM1
         MOV       EDX,bias_ptr
 end;
+{$ENDIF}
 
 procedure BlendRGB_SSE2(F: TColor32; var B: TColor32; W: TColor32);
 asm
+{$IFDEF TARGET_x86}
         PXOR      XMM2,XMM2
         MOVD      XMM0,EAX
         PUNPCKLBW XMM0,XMM2
@@ -734,6 +712,27 @@ asm
         PACKUSWB  XMM1,XMM2
         MOVD      [EDX],XMM1
         MOV       EDX, bias_ptr
+{$ENDIF}
+{$IFDEF TARGET_x64}
+        PXOR      XMM2,XMM2
+        MOVD      XMM0,ECX
+        PUNPCKLBW XMM0,XMM2
+        MOVD      XMM1,[RDX]
+        PUNPCKLBW XMM1,XMM2
+        BSWAP     ECX
+        PSUBW     XMM0,XMM1
+        MOVD      XMM3,ECX
+        PUNPCKLBW XMM3,XMM2
+        PMULLW    XMM0,XMM3
+        MOV       RAX, bias_ptr
+        PSLLW     XMM1,8
+        PADDW     XMM1,[RAX]
+        PADDW     XMM1,XMM0
+        PSRLW     XMM1,8
+        PACKUSWB  XMM1,XMM2
+        MOVD      [RDX],XMM1
+        MOV       RDX, bias_ptr
+{$ENDIF}
 end;
 {$ENDIF}
 
@@ -789,12 +788,12 @@ const
 var
   AlphaValues: SysUtils.PByteArray;
   Count: Integer;
-  X1, Offset: Integer;
+  X1, Offset: Word;
 const
   MakeAlpha: array [TPolyFillMode] of TMakeAlphaProcLCD = (MakeAlphaEvenOddLCD, MakeAlphaNonZeroLCD);
 begin
   Count := Span.X2 - Span.X1 + 1;
-  X1 := DivMod(Span.X1, 3, Offset);
+  DivMod(Span.X1, 3, X1, Offset);
 
   // Left Padding + Right Padding + Filter Width = 2 + 2 + 2 = 6
   AlphaValues := StackAlloc((Count + 6 + PADDING) * SizeOf(Byte));
@@ -825,12 +824,12 @@ const
 var
   AlphaValues: SysUtils.PByteArray;
   Count: Integer;
-  X1, Offset: Integer;
+  X1, Offset: Word;
 const
   MakeAlpha: array [TPolyFillMode] of TMakeAlphaProcLCD = (MakeAlphaEvenOddLCD2, MakeAlphaNonZeroLCD2);
 begin
   Count := Span.X2 - Span.X1 + 1;
-  X1 := DivMod(Span.X1, 3, Offset);
+  DivMod(Span.X1, 3, X1, Offset);
 
   // Left Padding + Right Padding + Filter Width = 2 + 2 + 2 = 6
   AlphaValues := StackAlloc((Count + 6 + PADDING) * SizeOf(Byte));
