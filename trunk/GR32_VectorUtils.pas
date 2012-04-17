@@ -32,7 +32,7 @@ interface
 {$BOOLEVAL OFF}
 
 // Undefine this symbol if you get stack overflow errors
-{$DEFINE USESTACKALLOC}
+{-$DEFINE USESTACKALLOC}
 
 uses
   GR32, GR32_Transforms;
@@ -101,16 +101,26 @@ type
 
 function _Round(var X: Single): Integer;
 asm
+{$IFDEF TARGET_x86}
         fld       [X]
         fistp     dword ptr [esp-4]
         mov       eax,[esp-4]
+{$ENDIF}
+{$IFDEF TARGET_x64}
+        cvtss2si  eax, xmm0
+{$ENDIF}
 end;
 
 function Round(const X: Single): Integer;
 asm
+{$IFDEF TARGET_x86}
         fld       X
         fistp     dword ptr [esp-4]
         mov       eax,[esp-4]
+{$ENDIF}
+{$IFDEF TARGET_x64}
+        cvtss2si  eax, xmm0
+{$ENDIF}
 end;
 
 // Returns True if Min(X1, X2) <= X < Max(X1, X2)
