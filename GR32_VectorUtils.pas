@@ -107,6 +107,7 @@ asm
         mov       eax,[esp-4]
 {$ENDIF}
 {$IFDEF TARGET_x64}
+        movss     xmm0, [X]
         cvtss2si  eax, xmm0
 {$ENDIF}
 end;
@@ -703,7 +704,6 @@ const
 var
   I, J, K, L, N: Integer;
   X, Y, Z, Code, Count: Integer;
-  X1, X2, Y1, Y2: TFloat;
   Codes: PByteArray;
   NextIndex: PIntegerArray;
   Temp: PFloatPointArray;
@@ -769,10 +769,6 @@ begin
 {$ENDIF}
   X := 15;
   Y := 0;
-  X1 := ClipRect.Left;
-  X2 := ClipRect.Right;
-  Y1 := ClipRect.Top;
-  Y2 := ClipRect.Bottom;
   for I := 0 to N - 1 do
   begin
     Code := GetCode(Points[I], ClipRect);

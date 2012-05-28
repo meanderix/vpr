@@ -331,7 +331,7 @@ asm
         ADD     EAX,16
         SUB     ECX,1
         JNZ     @LOOP
-        POP     EBX
+        POP     RBX
         MOV     ECX,EDX
         SAR     ECX,2
         SHL     ECX,2
@@ -744,7 +744,8 @@ begin
 
     for I := 0 to High(ScanLines) do
     begin
-      RenderScanline(ScanLines[I], ExtractSingleSpan, RenderProc, Data, @SpanData[-CX1 + 1], CX1, CX2);
+      RenderScanline(ScanLines[I], ExtractSingleSpan, RenderProc, Data,
+        @SpanData[-CX1 + 1], CX1, CX2);
       FreeMem(ScanLines[I].Segments);
     end;
     FreeMem(SpanData);
