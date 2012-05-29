@@ -260,23 +260,25 @@ asm
         JNZ     @LOOP3
 {$ENDIF}
 {$IFDEF TARGET_x64}
-        MOV     ECX,EDX
-        CMP     ECX,2       // if count < 2, exit
+        CMP     EDX,2       // if count < 2, exit
         JL      @END
+
+        MOV     EAX,ECX
+        MOV     ECX,EDX
+
         CMP     ECX,32      // if count < 32, avoid SSE2 overhead
         JL      @SMALL
 
 {--- align memory ---}
-        PUSH    RBX
         PXOR    XMM4,XMM4
-        MOV     EBX,EAX
-        AND     EBX,15       // get aligned count
+        MOV     R8D,EAX
+        AND     R8D,15       // get aligned count
         JZ      @ENDALIGNING // already aligned
-        ADD     EBX,-16
-        NEG     EBX          // get bytes to advance
+        ADD     R8D,-16
+        NEG     R8D          // get bytes to advance
         JZ      @ENDALIGNING // already aligned
 
-        MOV     ECX,EBX
+        MOV     ECX,R8D
         SAR     ECX,2        // div with 4 to get cnt
         SUB     EDX,ECX
 
@@ -298,16 +300,14 @@ asm
         PSRLDQ  XMM4,12
 
 @ENDALIGNING:
-        POP     RBX
-        PUSH    RBX
         MOV     ECX,EDX
         SAR     ECX,2
 @LOOP:
         MOVAPS  XMM0,[EAX]
         PXOR    XMM5,XMM5
         PCMPEQD XMM5,XMM0
-        PMOVMSKB EBX,XMM5
-        CMP     EBX,$0000FFFF
+        PMOVMSKB R8D,XMM5
+        CMP     R8D,$0000FFFF
         JNE     @NORMAL
         PSHUFD  XMM0,XMM4,0
         JMP     @SKIP
@@ -326,12 +326,11 @@ asm
         PSRLDQ  XMM4,12
 
 @SKIP:
-        PREFETCHNTA [eax+16*16*2]
+        PREFETCHNTA [EAX + 32 * 2]
         MOVAPS  [EAX],XMM0
         ADD     EAX,16
         SUB     ECX,1
         JNZ     @LOOP
-        POP     RBX
         MOV     ECX,EDX
         SAR     ECX,2
         SHL     ECX,2

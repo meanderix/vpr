@@ -32,6 +32,12 @@ interface
 {$DEFINE USEGR32GAMMA}
 {.$DEFINE CHANGENOTIFICATIONS}
 
+{$IFNDEF PUREPASCAL}
+  {$IFDEF TARGET_X86}
+    {$DEFINE USESTACKALLOC}
+  {$ENDIF}
+{$ENDIF}
+
 uses
   GR32, GR32_VPR, GR32_Polygons, GR32_VectorUtils, Types;
 
@@ -719,9 +725,9 @@ asm
         PUNPCKLBW XMM0,XMM2
         MOVD      XMM1,[RDX]
         PUNPCKLBW XMM1,XMM2
-        BSWAP     ECX
+        BSWAP     R8D
         PSUBW     XMM0,XMM1
-        MOVD      XMM3,ECX
+        MOVD      XMM3,R8D
         PUNPCKLBW XMM3,XMM2
         PMULLW    XMM0,XMM3
         MOV       RAX, bias_ptr
@@ -761,11 +767,19 @@ var
   Count: Integer;
 begin
   Count := Span.X2 - Span.X1 + 1;
+{$IFDEF USESTACKALLOC}
   AlphaValues := StackAlloc(Count * SizeOf(TColor32));
+{$ELSE}
+  GetMem(AlphaValues, Count * SizeOf(TColor32));
+{$ENDIF}
   FFillProcUnpacked(Span.Values, AlphaValues, Count, FColor);
   FFiller.FillLine(@Bitmap.ScanLine[DstY][Span.X1], Span.X1, DstY, Count, PColor32(AlphaValues));
   EMMS;
+{$IFDEF USESTACKALLOC}
   StackFree(AlphaValues);
+{$ELSE}
+  FreeMem(AlphaValues);
+{$ENDIF}
 end;
 
 procedure TPolygonRenderer32.RenderSpan(const Span: TValueSpan; DstY: Integer);
@@ -774,11 +788,19 @@ var
   Count: Integer;
 begin
   Count := Span.X2 - Span.X1 + 1;
+{$IFDEF USESTACKALLOC}
   AlphaValues := StackAlloc(Count * SizeOf(TColor32));
+{$ELSE}
+  GetMem(AlphaValues, Count * SizeOf(TColor32));
+{$ENDIF}
   FFillProcUnpacked(Span.Values, AlphaValues, Count, FColor);
   BlendLine(@AlphaValues[0], @Bitmap.ScanLine[DstY][Span.X1], Count);
   EMMS;
+{$IFDEF USESTACKALLOC}
   StackFree(AlphaValues);
+{$ELSE}
+  FreeMem(AlphaValues);
+{$ENDIF}
 end;
 
 procedure TPolygonRenderer32.RenderSpanLCD(const Span: TValueSpan;
@@ -796,7 +818,11 @@ begin
   DivMod(Span.X1, 3, X1, Offset);
 
   // Left Padding + Right Padding + Filter Width = 2 + 2 + 2 = 6
+{$IFDEF USESTACKALLOC}
   AlphaValues := StackAlloc((Count + 6 + PADDING) * SizeOf(Byte));
+{$ELSE}
+  GetMem(AlphaValues, (Count + 6 + PADDING) * SizeOf(Byte));
+{$ENDIF}
   AlphaValues[0] := 0;
   AlphaValues[1] := 0;
   if (X1 > 0) then
@@ -814,7 +840,11 @@ begin
   MakeAlpha[FFillMode](Span.Values, PByteArray(@AlphaValues[PADDING]), Count, FColor);
   CombineLineLCD(@AlphaValues[PADDING - Offset], PColor32Array(@Bitmap.ScanLine[DstY][X1]), FColor, (Count + Offset + 2) div 3);
 
+{$IFDEF USESTACKALLOC}
   StackFree(AlphaValues);
+{$ELSE}
+  FreeMem(AlphaValues);
+{$ENDIF}
 end;
 
 procedure TPolygonRenderer32.RenderSpanLCD2(const Span: TValueSpan;
@@ -832,7 +862,11 @@ begin
   DivMod(Span.X1, 3, X1, Offset);
 
   // Left Padding + Right Padding + Filter Width = 2 + 2 + 2 = 6
+{$IFDEF USESTACKALLOC}
   AlphaValues := StackAlloc((Count + 6 + PADDING) * SizeOf(Byte));
+{$ELSE}
+  GetMem(AlphaValues, (Count + 6 + PADDING) * SizeOf(Byte));
+{$ENDIF}
   AlphaValues[0] := 0;
   AlphaValues[1] := 0;
   if (X1 > 0) then
@@ -849,7 +883,11 @@ begin
   Inc(Count);
   CombineLineLCD(@AlphaValues[PADDING - Offset], PColor32Array(@Bitmap.ScanLine[DstY][X1]), FColor, (Count + Offset + 2) div 3);
 
+{$IFDEF USESTACKALLOC}
   StackFree(AlphaValues);
+{$ELSE}
+  FreeMem(AlphaValues);
+{$ENDIF}
 end;
 
 
@@ -912,7 +950,7 @@ begin
   {$IFNDEF OMIT_MMX}
   BlendRegistry.Add(FID_BlendRGB, @BlendRGB_MMX, [ciMMX]);
   {$ENDIF}
-  BlendRegistry.Add(FID_BlendRGB, @BlendRGB_SSE2, [ciMMX]);
+  BlendRegistry.Add(FID_BlendRGB, @BlendRGB_SSE2, [ciSSE2]);
   {$ENDIF}
   BlendRegistry.RebindAll;
 end;

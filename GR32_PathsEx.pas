@@ -31,7 +31,7 @@ interface
 
 {$IFNDEF PUREPASCAL}
   {$IFDEF TARGET_X86}
-    {$DEFINE UseStackAlloc}
+    {$DEFINE USESTACKALLOC}
   {$ENDIF}
 {$ENDIF}
 
