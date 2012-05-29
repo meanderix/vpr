@@ -32,7 +32,11 @@ interface
 {$BOOLEVAL OFF}
 
 // Undefine this symbol if you get stack overflow errors
-{-$DEFINE USESTACKALLOC}
+{$IFNDEF PUREPASCAL}
+  {$IFDEF TARGET_X86}
+    {-$DEFINE USESTACKALLOC}
+  {$ENDIF}
+{$ENDIF}
 
 uses
   GR32, GR32_Transforms;
