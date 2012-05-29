@@ -29,6 +29,12 @@ interface
 
 {$I GR32.inc}
 
+{$IFNDEF PUREPASCAL}
+  {$IFDEF TARGET_X86}
+    {$DEFINE UseStackAlloc}
+  {$ENDIF}
+{$ENDIF}
+
 uses
   Windows, Classes, Math, GR32, GR32_Polygons, GR32_Resamplers, GR32_Transforms
   { GR32_PolygonsEx };
@@ -293,7 +299,7 @@ var
 implementation
 
 uses
-  SysUtils, Types, GR32_LowLevel;
+  SysUtils, Types, GR32_LowLevel, GR32_Backends;
 
 function AddPoints(const A, B: TFloatPoint): TFloatPoint;
 begin
@@ -415,18 +421,18 @@ var
     end
     else
     begin
-      P12.X   := (P1.X + P2.X) * 1/2;
-      P12.Y   := (P1.Y + P2.Y) * 1/2;
-      P23.X   := (P2.X + P3.X) * 1/2;
-      P23.Y   := (P2.Y + P3.Y) * 1/2;
-      P34.X   := (P3.X + P4.X) * 1/2;
-      P34.Y   := (P3.Y + P4.Y) * 1/2;
-      P123.X  := (P12.X + P23.X) * 1/2;
-      P123.Y  := (P12.Y + P23.Y) * 1/2;
-      P234.X  := (P23.X + P34.X) * 1/2;
-      P234.Y  := (P23.Y + P34.Y) * 1/2;
-      P1234.X := (P123.X + P234.X) * 1/2;
-      P1234.Y := (P123.Y + P234.Y) * 1/2;
+      P12.X   := (P1.X + P2.X) * 0.5;
+      P12.Y   := (P1.Y + P2.Y) * 0.5;
+      P23.X   := (P2.X + P3.X) * 0.5;
+      P23.Y   := (P2.Y + P3.Y) * 0.5;
+      P34.X   := (P3.X + P4.X) * 0.5;
+      P34.Y   := (P3.Y + P4.Y) * 0.5;
+      P123.X  := (P12.X + P23.X) * 0.5;
+      P123.Y  := (P12.Y + P23.Y) * 0.5;
+      P234.X  := (P23.X + P34.X) * 0.5;
+      P234.Y  := (P23.Y + P34.Y) * 0.5;
+      P1234.X := (P123.X + P234.X) * 0.5;
+      P1234.Y := (P123.Y + P234.Y) * 0.5;
 
       Recurse(P1, P12, P123, P1234);
       Recurse(P1234, P234, P34, P4);
@@ -459,18 +465,18 @@ var
     P12, P23, P34, P123, P234, P1234: TFloatPoint;
     NewD: TFloat;
   begin
-    P12.X   := (P1.X + P2.X) * 1/2;
-    P12.Y   := (P1.Y + P2.Y) * 1/2;
-    P23.X   := (P2.X + P3.X) * 1/2;
-    P23.Y   := (P2.Y + P3.Y) * 1/2;
-    P34.X   := (P3.X + P4.X) * 1/2;
-    P34.Y   := (P3.Y + P4.Y) * 1/2;
-    P123.X  := (P12.X + P23.X) * 1/2;
-    P123.Y  := (P12.Y + P23.Y) * 1/2;
-    P234.X  := (P23.X + P34.X) * 1/2;
-    P234.Y  := (P23.Y + P34.Y) * 1/2;
-    P1234.X := (P123.X + P234.X) * 1/2;
-    P1234.Y := (P123.Y + P234.Y) * 1/2;
+    P12.X   := (P1.X + P2.X) * 0.5;
+    P12.Y   := (P1.Y + P2.Y) * 0.5;
+    P23.X   := (P2.X + P3.X) * 0.5;
+    P23.Y   := (P2.Y + P3.Y) * 0.5;
+    P34.X   := (P3.X + P4.X) * 0.5;
+    P34.Y   := (P3.Y + P4.Y) * 0.5;
+    P123.X  := (P12.X + P23.X) * 0.5;
+    P123.Y  := (P12.Y + P23.Y) * 0.5;
+    P234.X  := (P23.X + P34.X) * 0.5;
+    P234.Y  := (P23.Y + P34.Y) * 0.5;
+    P1234.X := (P123.X + P234.X) * 0.5;
+    P1234.Y := (P123.Y + P234.Y) * 0.5;
 
     NewD := SqrDistance(P, P1234);
     if (NewD < D1) and (NewD < D2) then
@@ -572,20 +578,20 @@ var
     P12, P23, P34, P123, P234, P1234: TFloatPoint;
     R1, R2, NewD: TFloat;
   begin
-    P12.X   := (P1.X + P2.X) * 1/2;
-    P12.Y   := (P1.Y + P2.Y) * 1/2;
-    P23.X   := (P2.X + P3.X) * 1/2;
-    P23.Y   := (P2.Y + P3.Y) * 1/2;
-    P34.X   := (P3.X + P4.X) * 1/2;
-    P34.Y   := (P3.Y + P4.Y) * 1/2;
-    P123.X  := (P12.X + P23.X) * 1/2;
-    P123.Y  := (P12.Y + P23.Y) * 1/2;
-    P234.X  := (P23.X + P34.X) * 1/2;
-    P234.Y  := (P23.Y + P34.Y) * 1/2;
-    P1234.X := (P123.X + P234.X) * 1/2;
-    P1234.Y := (P123.Y + P234.Y) * 1/2;
+    P12.X   := (P1.X + P2.X) * 0.5;
+    P12.Y   := (P1.Y + P2.Y) * 0.5;
+    P23.X   := (P2.X + P3.X) * 0.5;
+    P23.Y   := (P2.Y + P3.Y) * 0.5;
+    P34.X   := (P3.X + P4.X) * 0.5;
+    P34.Y   := (P3.Y + P4.Y) * 0.5;
+    P123.X  := (P12.X + P23.X) * 0.5;
+    P123.Y  := (P12.Y + P23.Y) * 0.5;
+    P234.X  := (P23.X + P34.X) * 0.5;
+    P234.Y  := (P23.Y + P34.Y) * 0.5;
+    P1234.X := (P123.X + P234.X) * 0.5;
+    P1234.Y := (P123.Y + P234.Y) * 0.5;
 
-    Delta := Delta * 1/2;
+    Delta := Delta * 0.5;
     NewD := SqrDistance(P, P1234);
     if (NewD < D1) and (NewD < D2) then
     begin
@@ -920,18 +926,18 @@ var
     end
     else
     begin
-      P12.X   := (P1.X + P2.X) * 1/2;
-      P12.Y   := (P1.Y + P2.Y) * 1/2;
-      P23.X   := (P2.X + P3.X) * 1/2;
-      P23.Y   := (P2.Y + P3.Y) * 1/2;
-      P34.X   := (P3.X + P4.X) * 1/2;
-      P34.Y   := (P3.Y + P4.Y) * 1/2;
-      P123.X  := (P12.X + P23.X) * 1/2;
-      P123.Y  := (P12.Y + P23.Y) * 1/2;
-      P234.X  := (P23.X + P34.X) * 1/2;
-      P234.Y  := (P23.Y + P34.Y) * 1/2;
-      P1234.X := (P123.X + P234.X) * 1/2;
-      P1234.Y := (P123.Y + P234.Y) * 1/2;
+      P12.X   := (P1.X + P2.X) * 0.5;
+      P12.Y   := (P1.Y + P2.Y) * 0.5;
+      P23.X   := (P2.X + P3.X) * 0.5;
+      P23.Y   := (P2.Y + P3.Y) * 0.5;
+      P34.X   := (P3.X + P4.X) * 0.5;
+      P34.Y   := (P3.Y + P4.Y) * 0.5;
+      P123.X  := (P12.X + P23.X) * 0.5;
+      P123.Y  := (P12.Y + P23.Y) * 0.5;
+      P234.X  := (P23.X + P34.X) * 0.5;
+      P234.Y  := (P23.Y + P34.Y) * 0.5;
+      P1234.X := (P123.X + P234.X) * 0.5;
+      P1234.Y := (P123.Y + P234.Y) * 0.5;
 
       Recurse(P1, P12, P123, P1234);
       Recurse(P1234, P234, P34, P4);
@@ -968,18 +974,18 @@ var
     end
     else
     begin
-      P12.X   := (P1.X + P2.X) * 1/2;
-      P12.Y   := (P1.Y + P2.Y) * 1/2;
-      P23.X   := (P2.X + P3.X) * 1/2;
-      P23.Y   := (P2.Y + P3.Y) * 1/2;
-      P34.X   := (P3.X + P4.X) * 1/2;
-      P34.Y   := (P3.Y + P4.Y) * 1/2;
-      P123.X  := (P12.X + P23.X) * 1/2;
-      P123.Y  := (P12.Y + P23.Y) * 1/2;
-      P234.X  := (P23.X + P34.X) * 1/2;
-      P234.Y  := (P23.Y + P34.Y) * 1/2;
-      P1234.X := (P123.X + P234.X) * 1/2;
-      P1234.Y := (P123.Y + P234.Y) * 1/2;
+      P12.X   := (P1.X + P2.X) * 0.5;
+      P12.Y   := (P1.Y + P2.Y) * 0.5;
+      P23.X   := (P2.X + P3.X) * 0.5;
+      P23.Y   := (P2.Y + P3.Y) * 0.5;
+      P34.X   := (P3.X + P4.X) * 0.5;
+      P34.Y   := (P3.Y + P4.Y) * 0.5;
+      P123.X  := (P12.X + P23.X) * 0.5;
+      P123.Y  := (P12.Y + P23.Y) * 0.5;
+      P234.X  := (P23.X + P34.X) * 0.5;
+      P234.Y  := (P23.Y + P34.Y) * 0.5;
+      P1234.X := (P123.X + P234.X) * 0.5;
+      P1234.Y := (P123.Y + P234.Y) * 0.5;
 
       Recurse(P1, P12, P123, P1234);
       Recurse(P1234, P234, P34, P4);
@@ -1020,18 +1026,18 @@ var
     P12, P23, P34, P123, P234, P1234: TFloatPoint;
     NewD: TFloat;
   begin
-    P12.X   := (P1.X + P2.X) * 1/2;
-    P12.Y   := (P1.Y + P2.Y) * 1/2;
-    P23.X   := (P2.X + P3.X) * 1/2;
-    P23.Y   := (P2.Y + P3.Y) * 1/2;
-    P34.X   := (P3.X + P4.X) * 1/2;
-    P34.Y   := (P3.Y + P4.Y) * 1/2;
-    P123.X  := (P12.X + P23.X) * 1/2;
-    P123.Y  := (P12.Y + P23.Y) * 1/2;
-    P234.X  := (P23.X + P34.X) * 1/2;
-    P234.Y  := (P23.Y + P34.Y) * 1/2;
-    P1234.X := (P123.X + P234.X) * 1/2;
-    P1234.Y := (P123.Y + P234.Y) * 1/2;
+    P12.X   := (P1.X + P2.X) * 0.5;
+    P12.Y   := (P1.Y + P2.Y) * 0.5;
+    P23.X   := (P2.X + P3.X) * 0.5;
+    P23.Y   := (P2.Y + P3.Y) * 0.5;
+    P34.X   := (P3.X + P4.X) * 0.5;
+    P34.Y   := (P3.Y + P4.Y) * 0.5;
+    P123.X  := (P12.X + P23.X) * 0.5;
+    P123.Y  := (P12.Y + P23.Y) * 0.5;
+    P234.X  := (P23.X + P34.X) * 0.5;
+    P234.Y  := (P23.Y + P34.Y) * 0.5;
+    P1234.X := (P123.X + P234.X) * 0.5;
+    P1234.Y := (P123.Y + P234.Y) * 0.5;
 
     NewD := SqrDistance(P, P1234);
     if (NewD < D1) and (NewD < D2) then
@@ -1273,8 +1279,7 @@ end;
 function GlyphOutlineToBezierCurve(Dst: TBitmap32; DstX, DstY: TFloat;
   const Glyph: Integer; out Metrics: TGlyphMetrics): TBezierCurve;
 var
-  I, J, K, S, Res: Integer;
-  Code: LongWord;
+  J, K, S, Res: Integer;
   PGlyphMem, PBuffer: PTTPolygonHeader;
   PPCurve: PTTPolyCurve;
 
@@ -1292,20 +1297,31 @@ var
   end;
 
 begin
+  Result := nil;
   Dst.UpdateFont;
   Handle := Dst.Handle;
 
   Res := GetGlyphOutlineW(Handle, Glyph, GGODefaultFlags, Metrics, 0, nil, VertFlip_mat2);
 
+  if Res = 0 then
+    Exit;
+
+  {$IFDEF UseStackAlloc}
   PGlyphMem := StackAlloc(Res);
+  {$ELSE}
+  GetMem(PGlyphMem, Res);
+  {$ENDIF}
   PBuffer := PGlyphMem;
 
   Res := GetGlyphOutlineW(Handle, Glyph, GGODefaultFlags, Metrics, Res, PBuffer, VertFlip_mat2);
 
   if (Res = GDI_ERROR) or (PBuffer^.dwType <> TT_POLYGON_TYPE) then
   begin
-    Result := nil;
+    {$IFDEF UseStackAlloc}
     StackFree(PGlyphMem);
+    {$ELSE}
+    FreeMem(PGlyphMem);
+    {$ENDIF}
     Exit;
   end;
 
@@ -1316,7 +1332,14 @@ begin
       BezierCurve.NewContour;
 
       S := PBuffer.cb - SizeOf(TTTPolygonHeader);
+      {$IFDEF Target_x86}
       Integer(PPCurve) := Integer(PBuffer) + SizeOf(TTTPolygonHeader);
+      {$ENDIF}
+
+      {$IFDEF Target_x64}
+      Int64(PPCurve) := Int64(PBuffer) + SizeOf(TTTPolygonHeader);
+      {$ENDIF}
+
       Q0 := PointFXtoFixedPoint(PBuffer.pfxStart);
       Q2 := Q0;
 
@@ -1366,10 +1389,24 @@ begin
         end;
         K := (PPCurve.cpfx - 1) * SizeOf(TPointFX) + SizeOf(TTPolyCurve);
         Dec(S, K);
+
+        {$IFDEF Target_x86}
         Inc(Integer(PPCurve), K);
+        {$ENDIF}
+
+        {$IFDEF Target_x64}
+        Inc(Int64(PPCurve), K);
+        {$ENDIF}
       end;
 
+      {$IFDEF Target_x86}
       Dec(Integer(PPCurve), K);
+      {$ENDIF}
+
+      {$IFDEF Target_x64}
+      Dec(Int64(PPCurve), K);
+      {$ENDIF}
+
       if PPCurve.wType = TT_PRIM_QSPLINE then
       begin
         Q1 := PointFXtoFixedPoint(PPCurve.apfx[PPCurve.cpfx - 1]);
@@ -1377,14 +1414,25 @@ begin
       end;
 
       Dec(Res, PBuffer.cb);
+
+      {$IFDEF Target_x86}
       Inc(Integer(PBuffer), PBuffer.cb);
+      {$ENDIF}
+
+      {$IFDEF Target_x64}
+      Inc(Int64(PBuffer), PBuffer.cb);
+      {$ENDIF}
     end;
 
   except
     BezierCurve.Free;
   end;
   Result := BezierCurve;
+  {$IFDEF UseStackAlloc}
   StackFree(PGlyphMem);
+  {$ELSE}
+  FreeMem(PGlyphMem);
+  {$ENDIF}
 end;
 
 { function GlyphOutlineToBezierCurve(Dst: TBitmap32; DstX, DstY: TFloat;
