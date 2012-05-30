@@ -2,7 +2,9 @@ program textdemo;
 
 uses
   FastMM4,
+  {$IFNDEF CPUX64}
   FastMove,
+  {$ENDIF}
   Forms,
   MainUnit in 'MainUnit.pas' {MainForm};
 
